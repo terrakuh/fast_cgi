@@ -5,6 +5,7 @@
 #include <condition_variable>
 #include <deque>
 #include <functional>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -16,17 +17,25 @@ class output_manager
 public:
 	typedef std::function<void(writer&)> task_type;
 
-	void add(task_type&& task)
+	/**
+	  Adds a writing task to the queue. The task are executed on a different thread at an unspecified time.
+
+	  @param task is the writing task
+	  @returns a future that will be completed when the writing task finished
+	 */
+	std::future<void> add(task_type&& task)
 	{
 		std::lock_guard<std::mutex> lock(_mutex);
 
-		_queue.push_back(std::move(task));
+		_queue.push_back({ std::move(task), {} });
 		_cv.notify_one();
+
+		return _queue.back().second.get_future();
 	}
 	void run(writer& writer)
 	{
 		while (true) {
-			task_type task;
+			std::pair<task_type, std::promise<void>> task;
 
 			// poll queue
 			{
@@ -39,13 +48,14 @@ public:
 			}
 
 			// execute task
-			task(writer);
+			task.first(writer);
+			task.second.set_value();
 			writer.flush();
 		}
 	}
 
 private:
-	std::deque<task_type> _queue;
+	std::deque<std::pair<task_type, std::promise<void>>> _queue;
 	std::mutex _mutex;
 	std::condition_variable _cv;
 };
