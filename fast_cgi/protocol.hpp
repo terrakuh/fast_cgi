@@ -2,7 +2,6 @@
 
 #include "connection.hpp"
 #include "detail/record.hpp"
-#include "handler.hpp"
 #include "output_manager.hpp"
 #include "reader.hpp"
 #include "request_manager.hpp"
@@ -30,7 +29,6 @@ public:
 
 private:
 	detail::VERSION version;
-	std::shared_ptr<handler> handler;
 	std::shared_ptr<task_distributor> task_distributor;
 	request_manager request_manager;
 
