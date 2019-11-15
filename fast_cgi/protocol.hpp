@@ -5,7 +5,6 @@
 #include "output_manager.hpp"
 #include "reader.hpp"
 #include "request_manager.hpp"
-#include "task_distributor.hpp"
 #include "writer.hpp"
 
 #include <cstddef>
@@ -29,7 +28,6 @@ public:
 
 private:
 	detail::VERSION version;
-	std::shared_ptr<task_distributor> task_distributor;
 	request_manager request_manager;
 
 	void input_handler(std::shared_ptr<connection> transport_connection, output_manager& output_manager)
