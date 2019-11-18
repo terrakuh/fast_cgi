@@ -246,11 +246,6 @@ struct record
 		reader.read(padding_length);
 		reader.skip(1);
 	}
-	void skip(reader& reader)
-	{
-		reader.skip(content_length);
-		reader.skip(padding_length);
-	}
 	template<typename T>
 	void write(output_manager& output_manager, const T& data)
 	{
