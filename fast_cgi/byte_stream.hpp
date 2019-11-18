@@ -30,13 +30,18 @@ class input_streambuf : public std::basic_streambuf<byte_type>
 public:
 	input_streambuf(buffer& buffer) : _buffer(buffer)
 	{}
-	input_streambuf(input_streambuf&& move) : std::basic_streambuf(std::move(move))
-	{
-		_end	  = move._end;
-		move._end = nullptr;
-	}
-	void wait_for_all_input()
+	input_streambuf(input_streambuf&& move) : std::basic_streambuf(std::move(move)), _buffer(move._buffer)
 	{}
+	void wait_for_all_input()
+	{
+		while (true) {
+			auto input = _buffer.wait_for_input();
+
+			if (input.second == 0) {
+				break;
+			}
+		}
+	}
 
 protected:
 	virtual int_type underflow() override
@@ -57,7 +62,6 @@ protected:
 	}
 
 private:
-	byte_type* _end;
 	buffer& _buffer;
 };
 
