@@ -6,9 +6,9 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <mutex>
 #include <utility>
-#include <deque>
 
 namespace fast_cgi {
 
@@ -28,13 +28,50 @@ public:
 		{
 			close();
 		}
+		/**
+		  Returns a buffer where the user can write his contents. The returned buffer size may be smaller than the
+		  desired size.
+
+		  @param desired the desired size of the buffer
+		  @returns the buffer pointer and its size; if `size==0` the buffer is full and closed
+		 */
 		std::pair<void*, std::size_t> request_buffer(std::size_t desired)
-		{}
+		{
+			// limit buffer to max size
+			desired = std::min(desired, _buffer->_max_size - _buffer->_write_total);
+
+			if (desired == 0) {
+				return { nullptr, 0 };
+			}
+
+			page p{};
+
+			for (auto& page : _buffer->_pages) {
+				if (page.written < page.size) {
+					p = page;
+
+					break;
+				}
+			}
+
+			// no space available
+			if (p.begin == nullptr) {
+				p = _buffer->append_new_page();
+			}
+
+			auto size  = std::min(p.size - p.written, desired);
+			auto begin = static_cast<std::int8_t*>(p.begin) + p.written;
+
+			p.written += size;
+			_buffer->_write_total += size;
+
+			return { begin, size };
+		}
 		void close() noexcept
 		{
 			if (_buffer && _lock.owns_lock()) {
-				_buffer->_waiter.notify_one();
 				_lock.unlock();
+				_buffer->_waiter.notify_one();
 			}
 		}
 
@@ -70,7 +107,7 @@ public:
 
 		// reached end
 		if (_consume_total >= _max_size) {
-			return { nullptr, 0 };
+			return { nullptr, nullptr };
 		}
 
 		// wait for input
@@ -93,13 +130,10 @@ public:
 		ptr->consumed = ptr->written;
 		_consume_total += size;
 
-		// move page to back
-		if (ptr->consumed == ptr->size) {
-			
-		}
-
 		return { begin, size };
 	}
+	void close()
+	{}
 	writer begin_writing()
 	{
 		return { this };
@@ -108,7 +142,7 @@ public:
 private:
 	struct page
 	{
-		constexpr static auto max_size;
+		constexpr static auto max_size = 4096;
 		void* begin;
 		std::size_t size;
 		std::size_t consumed;
@@ -122,6 +156,18 @@ private:
 	std::size_t _write_total;
 	std::size_t _consume_total;
 	std::size_t _max_size;
+
+	page append_new_page()
+	{
+		page p{};
+
+		p.begin = _allocator->allocate(0);
+		p.size  = 0;
+
+		_pages.push_back(p);
+
+		return p;
+	}
 };
 
 } // namespace fast_cgi
