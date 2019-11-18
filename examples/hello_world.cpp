@@ -13,6 +13,8 @@ public:
 				 << "Hello, World!"
 				 << "</h1>"
 				 << "Your URI: " << params()["REQUEST_URI"] << "</html>";
+		
+		return 0;
 	}
 };
 
