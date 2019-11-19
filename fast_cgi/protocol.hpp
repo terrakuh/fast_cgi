@@ -1,71 +1,92 @@
 #pragma once
 
 #include "connection.hpp"
+#include "connector.hpp"
 #include "detail/record.hpp"
 #include "output_manager.hpp"
-#include "reader.hpp"
+#include "connection_reader.hpp"
 #include "request_manager.hpp"
 #include "writer.hpp"
 
 #include <cstddef>
-#include <cstdlib>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace fast_cgi {
 
 class protocol
 {
 public:
-	protocol(std::shared_ptr<connection> main_connection);
-
-	void run(const std::string& server_addresses)
-	{}
-	static std::string get_server_addresses()
+	protocol(std::shared_ptr<connector> connector) : _connector(std::move(connector))
 	{
-		return std::getenv("FCGI_WEB_SERVER_ADDRS");
+		_version = detail::VERSION::FCGI_VERSION_1;
+	}
+
+	void run()
+	{
+		// accept
+		std::unique_ptr<connection> connection;
+
+		while (connection = _connector->accept()) {
+			_connections.push_back(std::thread(&protocol::_connection_thread, this, std::move(connection)));
+		}
+	}
+	void join()
+	{
+		for (auto& thread : _connections) {
+			thread.join();
+		}
+
+		_connections.clear();
 	}
 
 private:
-	detail::VERSION version;
-	request_manager request_manager;
+	detail::VERSION _version;
+	request_manager _request_manager;
+	std::shared_ptr<connector> _connector;
+	std::vector<std::thread> _connections;
 
-	void input_handler(std::shared_ptr<connection> transport_connection, output_manager& output_manager)
+	void _connection_thread(std::unique_ptr<connection> connection)
 	{
-		reader reader(transport_connection);
+		volatile auto alive = true;
+		connection_reader reader(*connection);
+		output_manager output_manager(*connection);
+		std::thread output_thread(&fast_cgi::output_manager::run, &output_manager, std::ref(alive));
 
-		while (true) {
+		_input_handler(alive, reader, output_manager);
+
+		output_thread.join();
+	}
+	void _input_handler(volatile bool& alive, reader& reader, output_manager& output_manager)
+	{
+		while (alive) {
 			auto record = detail::record::read(reader);
 
 			// version mismatch
 			if (record.version != version) {
+				alive = false;
+
+				return;
 			}
 
 			// process record
 			switch (record.type) {
 			case detail::TYPE::GET_VALUES: {
-				get_values(reader, record);
-
-				break;
-			}
-			case detail::TYPE::ABORT_REQUEST:
-			case detail::TYPE::DATA:
-			case detail::TYPE::PARAMS:
-			case detail::TYPE::STDIN:
-			case detail::TYPE::BEGIN_REQUEST: {
-				request_manager.handle_request(reader, output_manager, record);
+				_get_values(reader, output_manager, record);
 
 				break;
 			}
 			default: {
+				// a request
 				if (record.request_id) {
-					request_manager.handle_request(reader, output_manager, record);
+					_request_manager.handle_request(reader, output_manager, record);
 
 					break;
 				}
 
 				// ignore body
-				record.skip(reader);
+				reader.skip(record.content_length);
 
 				// tell the server that the record was ignored
 				detail::record::write(output_manager, detail::unknown_type{ record.type });
@@ -78,7 +99,7 @@ private:
 			reader.skip(record.padding_length);
 		}
 	}
-	void get_values(reader& reader, detail::record& record)
+	void _get_values(reader& reader, output_manager& output_manager, detail::record record)
 	{
 		constexpr auto max_conns  = "FCGI_MAX_CONNS";
 		constexpr auto max_reqs   = "FCGI_MAX_REQS";
@@ -112,7 +133,7 @@ private:
 		auto begin = answer->begin();
 		auto end   = answer->end();
 
-		detail::record(version, 0).write(output_manager, detail::name_value_pair::from_generator([answer, begin, end]() mutable{
+		detail::record(_version, 0).write(output_manager, detail::name_value_pair::from_generator([answer, begin, end]() mutable{
 			if (begin != end) {
 				auto t = *begin;
 
