@@ -100,6 +100,12 @@ public:
 	buffer(const buffer& copy) = delete;
 	buffer(buffer&& move)
 	{}
+	void wait_for_all_input()
+	{
+		std::unique_lock<std::mutex> lock(_mutex);
+
+		_waiter.wait(lock, [this] { return _write_total >= _max_size; });
+	}
 	std::pair<void*, std::size_t> wait_for_input()
 	{
 		std::unique_lock<std::mutex> lock(_mutex);
@@ -133,7 +139,9 @@ public:
 		return { begin, size };
 	}
 	void close()
-	{}
+	{
+		_max_size = _write_total;
+	}
 	writer begin_writing()
 	{
 		return { this };

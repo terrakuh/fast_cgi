@@ -32,16 +32,6 @@ public:
 	{}
 	input_streambuf(input_streambuf&& move) : std::basic_streambuf(std::move(move)), _buffer(move._buffer)
 	{}
-	void wait_for_all_input()
-	{
-		while (true) {
-			auto input = _buffer.wait_for_input();
-
-			if (input.second == 0) {
-				break;
-			}
-		}
-	}
 
 protected:
 	virtual int_type underflow() override
