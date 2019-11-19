@@ -28,9 +28,6 @@ public:
 
 			value = ((value & 0x7f) << 24) + (buffer[1] << 16) + (buffer[2] << 8) +
 					buffer[3];
-			cursor += 4;
-		} else {
-			cursor += 1;
 		}
 
 		return value;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "connection.hpp"
+#include "detail/config.hpp"
 
 #include <memory>
 
