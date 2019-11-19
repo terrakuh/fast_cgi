@@ -32,33 +32,22 @@ private:
 
 	std::map<std::string, std::string> parameters;
 
-	void read_parameter(reader& reader, detail::record record)
+	void _read_parameters(reader& reader)
 	{
-		auto size = record.content_length;
-
 		while (true) {
 			auto pair = detail::name_value_pair::read(reader);
+			std::string name;
 
-			// protocol error: not implemented
-			if (pair.name_length + pair.value_length > size) {
-			}
+			name.resize(header.name_length);
 
-			read_parameter(reader, pair);
+			reader.read(name.data(), header.name_length);
+
+			auto& value = parameters[std::move(name)];
+
+			value.resize(header.value_length);
+
+			reader.read(value.data(), header.value_length);
 		}
-	}
-	void read_parameter(reader& reader, detail::name_value_pair pair)
-	{
-		std::string name;
-
-		name.resize(header.name_length);
-
-		reader.read(name.data(), header.name_length);
-
-		auto& value = parameters[std::move(name)];
-
-		value.resize(header.value_length);
-
-		reader.read(value.data(), header.value_length);
 	}
 };
 
