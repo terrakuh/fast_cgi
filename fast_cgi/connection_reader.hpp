@@ -4,6 +4,7 @@
 #include "reader.hpp"
 
 #include <cstdint>
+#include <cstring>
 #include <memory>
 
 namespace fast_cgi {
@@ -11,7 +12,7 @@ namespace fast_cgi {
 class connection_reader : public reader
 {
 public:
-	connection_reader(connection& connection) : connection(connection), buffer(new std::uint8_t[max_size])
+	connection_reader(const std::shared_ptr<connection>& connection) : connection(connection), buffer(new std::uint8_t[max_size])
 	{
 		cursor = 0;
 		size   = 0;
@@ -41,7 +42,7 @@ public:
 private:
 	constexpr static auto max_size = 4096;
 
-	std::shared_ptr<fast_cgi::connection> connection;
+	std::shared_ptr<connection> connection;
 	std::unique_ptr<std::uint8_t[]> buffer;
 	std::size_t cursor;
 	std::size_t size;

@@ -78,10 +78,8 @@ private:
 				break;
 			}
 			default: {
-				// a request
-				if (record.request_id) {
-					_request_manager.handle_request(reader, output_manager, record);
-
+				// a request -> handled
+				if (record.request_id && _request_manager.handle_request(reader, output_manager, record)) {
 					break;
 				}
 
@@ -89,7 +87,7 @@ private:
 				reader.skip(record.content_length);
 
 				// tell the server that the record was ignored
-				detail::record::write(output_manager, detail::unknown_type{ record.type });
+				detail::record::write(_version, record.request_id, output_manager, detail::unknown_type{ record.type });
 
 				break;
 			}
@@ -133,7 +131,7 @@ private:
 		auto begin = answer->begin();
 		auto end   = answer->end();
 
-		detail::record(_version, 0).write(output_manager, detail::name_value_pair::from_generator([answer, begin, end]() mutable{
+		detail::record::write(_version, 0, output_manager, detail::name_value_pair::from_generator([answer, begin, end]() mutable{
 			if (begin != end) {
 				auto t = *begin;
 

@@ -157,7 +157,6 @@ struct begin_request
 
 	static begin_request read(reader& reader)
 	{
-		reader.require_size(8);
 		auto role  = reader.read<ROLE>();
 		auto flags = reader.read<single_type>();
 		reader.skip(5);
@@ -226,30 +225,22 @@ struct record
 	const single_type padding_length;
 	// 1 byte padding
 
-	record(VERSION version, double_type request_id)
-		: version(version), type(type), request_id(request_id), content_length(content_length)
-	{}
-	record(const record& copy) = default;
 	static record read(reader& reader)
 	{
-		VERSION version;
-		TYPE type;
-		double_type request_id;
-		double_type content_length;
-		single_type padding_length;
+		auto version		= reader.read<VERSION>();
+		auto type			= reader.read<TYPE>();
+		auto request_id		= reader.read<double_type>();
+		auto content_length = reader.read<double_type>();
+		auto padding_length = reader.read<single_type>();
 
-		reader.require_size(sizeof(VERSION) + sizeof(TYPE) + 2 * sizeof(double_type) + 2 * sizeof(single_type));
-		reader.read(version);
-		reader.read(type);
-		reader.read(request_id);
-		reader.read(content_length);
-		reader.read(padding_length);
 		reader.skip(1);
+
+		return { version, type, request_id, content_length, padding_length };
 	}
 	template<typename T>
-	void write(output_manager& output_manager, const T& data)
+	static void write(VERSION version, double_type request_id, output_manager& output_manager, const T& data)
 	{
-		output_manager.add([unknown_type](writer& writer) {
+		output_manager.add([version, request_id, data](writer& writer) {
 			double_type size	= data.size();
 			single_type padding = size % default_padding_boundary;
 
@@ -258,7 +249,7 @@ struct record
 			}
 
 			// write header
-			writer.write_all(version, T::type(), request_id, size, padding, single_type());
+			writer.write_all(version, data.type(), request_id, size, padding, single_type());
 
 			// write data
 			data.write(writer);

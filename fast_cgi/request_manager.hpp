@@ -22,7 +22,7 @@ class request_manager
 public:
 	typedef detail::double_type id_type;
 
-	void handle_request(reader& reader, output_manager& output_manager, detail::record record)
+	bool handle_request(reader& reader, output_manager& output_manager, detail::record record)
 	{
 		std::shared_ptr<request> request;
 
@@ -34,7 +34,7 @@ public:
 			if (r == _requests.end()) {
 				reader.skip(record.content_length);
 
-				return;
+				return true;
 			}
 
 			request = r->second;
@@ -69,16 +69,10 @@ public:
 
 			break;
 		}
-		default: {
-			// ignore body
-			reader.skip(record.content_length);
-
-			// tell the server that the record was ignored
-			detail::record::write(output_manager, detail::unknown_type{ record.type });
-
-			break;
+		default: return false;
 		}
-		}
+
+		return true;
 	}
 
 private:
@@ -176,7 +170,7 @@ private:
 		auto body	= detail::begin_request::read(reader);
 		auto request = std::make_shared<request>(record.request_id, body.role, output_manager,
 												 (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0);
-		
+
 		switch (body.role) {
 		case detail::ROLE::FCGI_AUTHORIZER:
 		case detail::ROLE::FCGI_FILTER:
@@ -187,7 +181,8 @@ private:
 				auto role = factory->create();
 
 				// launch thread
-				request->handler_thread = std::thread(&request_manager::_request_hanlder, this, std::move(role), request);
+				request->handler_thread =
+					std::thread(&request_manager::_request_hanlder, this, std::move(role), request);
 
 				break;
 			} // else fall through, because role is unimplemented
