@@ -8,6 +8,7 @@
 #include "request.hpp"
 #include "role.hpp"
 
+#include <array>
 #include <istream>
 #include <map>
 #include <memory>
@@ -24,6 +25,10 @@ class request_manager
 public:
     typedef detail::double_type id_type;
 
+    request_manager(const std::shared_ptr<allocator>& allocator,
+                    const std::array<std::shared_ptr<role_factory>, 3>& role_factories)
+        : _allocator(allocator), _role_factories(role_factories)
+    {}
     bool handle_request(reader& reader, output_manager& output_manager, detail::record record)
     {
         std::shared_ptr<request> request;
@@ -83,7 +88,7 @@ private:
     std::mutex _mutex;
     requests_type _requests;
     std::shared_ptr<allocator> _allocator;
-    const std::shared_ptr<role_factory> _role_factories[3];
+    std::array<std::shared_ptr<role_factory>, 3> _role_factories;
 
     /**
       Forwards *length* bytes to *buffer* read by *reader*. If *length* is zero the buffer is closed.
@@ -150,26 +155,24 @@ private:
         // create output streams
         // todo: buffers nead to be copied
         buffer_manager buffer_manager(1024, _allocator);
-        output_streambuf sout(buffer_manager.new_page(), buffer_manager.page_size(),
-                              [&request, version, &buffer_manager](const void* buffer, std::size_t size) {
-                                  auto flag = detail::record::write(
-                                      version, request->id, *request->output_manager,
-                                      detail::stdout_stream{ buffer, static_cast<detail::double_type>(size) });
+        output_streambuf sout([&request, version, &buffer_manager](void* buffer,
+                                                                   std::size_t size) -> std::pair<void*, std::size_t> {
+            auto flag = detail::record::write(version, request->id, *request->output_manager,
+                                              detail::stdout_stream{ buffer, static_cast<detail::double_type>(size) });
 
-                                  buffer_manager.free_page(buffer, flag);
+            buffer_manager.free_page(buffer, flag);
 
-                                  return { buffer_manager.new_page(), buffer_manager.page_size() };
-                              });
-        output_streambuf serr(buffer_manager.new_page(), buffer_manager.page_size(),
-                              [&request, version, &buffer_manager](const void* buffer, std::size_t size) {
-                                  auto flag = detail::record::write(
-                                      version, request->id, *request->output_manager,
-                                      detail::stderr_stream{ buffer, static_cast<detail::double_type>(size) });
+            return { buffer_manager.new_page(), buffer_manager.page_size() };
+        });
+        output_streambuf serr([&request, version, &buffer_manager](void* buffer,
+                                                                   std::size_t size) -> std::pair<void*, std::size_t> {
+            auto flag = detail::record::write(version, request->id, *request->output_manager,
+                                              detail::stderr_stream{ buffer, static_cast<detail::double_type>(size) });
 
-                                  buffer_manager.free_page(buffer, flag);
+            buffer_manager.free_page(buffer, flag);
 
-                                  return { buffer_manager.new_page(), buffer_manager.page_size() };
-                              });
+            return { buffer_manager.new_page(), buffer_manager.page_size() };
+        });
         byte_ostream output_stream(&sout);
         byte_ostream error_stream(&serr);
 
@@ -201,8 +204,8 @@ private:
     void _begin_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
     {
         auto body    = detail::begin_request::read(reader);
-        auto request = std::make_shared<request>(record.request_id, body.role, output_manager,
-                                                 (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0);
+        auto request = std::make_shared<class request>(record.request_id, body.role, output_manager,
+                                                       (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0);
 
         switch (body.role) {
         case detail::ROLE::FCGI_AUTHORIZER:

@@ -7,6 +7,7 @@
 #include "output_manager.hpp"
 #include "request_manager.hpp"
 #include "role.hpp"
+#include "allocator.hpp"
 #include "writer.hpp"
 
 #include <cstddef>
@@ -34,8 +35,8 @@ public:
         // accept
         std::shared_ptr<connection> connection;
 
-        while (connection = _connector->accept()) {
-            spdlog::info("accepting new connection; launching new thread");
+        while ((connection = _connector->accept())) {
+            spdlog::info("accepted new connection; launching new thread");
 
             _connections.push_back(std::thread(&protocol::_connection_thread, this, std::move(connection)));
         }
@@ -53,6 +54,7 @@ private:
     detail::VERSION _version;
     std::shared_ptr<connector> _connector;
     std::vector<std::thread> _connections;
+    std::shared_ptr<allocator> _allocator;
 
     void _connection_thread(std::shared_ptr<connection> connection)
     {
@@ -67,7 +69,7 @@ private:
     }
     void _input_handler(volatile bool& alive, reader& reader, output_manager& output_manager)
     {
-        request_manager request_manager;
+        request_manager request_manager(_allocator, {});
 
         while (alive) {
             auto record = detail::record::read(reader);
@@ -93,6 +95,8 @@ private:
                 if (record.request_id && request_manager.handle_request(reader, output_manager, record)) {
                     break;
                 }
+
+                spdlog::warn("skipping record because of unkown type {}", record.type);
 
                 // ignore body
                 reader.skip(record.content_length);

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "allocator.hpp"
 #include "buffer.hpp"
 #include "detail/record.hpp"
 #include "output_manager.hpp"

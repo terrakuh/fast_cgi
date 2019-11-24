@@ -23,7 +23,7 @@ public:
 
         if (result != _pages.end()) {
             _pages.erase(result);
-            _free_pages.insert({ *result, tracker });
+            _free_pages.push_back({ *result, tracker });
         }
     }
     void* new_page()
