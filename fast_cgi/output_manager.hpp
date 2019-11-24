@@ -6,10 +6,10 @@
 #include <condition_variable>
 #include <deque>
 #include <functional>
-#include <future>
 #include <memory>
 #include <mutex>
 #include <utility>
+#include <atomic>
 
 namespace fast_cgi {
 
@@ -18,7 +18,7 @@ class output_manager
 public:
 	typedef std::function<void(writer&)> task_type;
 
-	output_manager(connection& connection) : _writer(connection)
+	output_manager(const std::shared_ptr<connection>& connection) : _writer(connection)
 	{}
 	/**
 	  Adds a writing task to the queue. The task are executed on a different thread at an unspecified time.
@@ -26,23 +26,28 @@ public:
 	  @param task is the writing task
 	  @returns a future that will be completed when the writing task finished
 	 */
-	std::future<void> add(task_type&& task)
+	std::shared_ptr<std::atomic_bool> add(task_type&& task)
 	{
 		std::lock_guard<std::mutex> lock(_mutex);
+		std::shared_ptr<std::atomic_bool> ret(new std::atomic_bool(false));
 
-		_queue.push_back({ std::move(task), {} });
+		_queue.push_back({ std::move(task), ret });
 		_cv.notify_one();
 
-		return _queue.back().second.get_future();
+		return ret;
 	}
 	void run(volatile bool& alive)
 	{
 		while (alive) {
-			std::pair<task_type, std::promise<void>> task;
+			queue_type task;
 
 			// poll queue
 			{
 				std::unique_lock<std::mutex> lock(_mutex);
+
+				if (_queue.empty()) {
+					_writer.flush();
+				}
 
 				_cv.wait(lock, [&] { return !_queue.empty() || !alive; });
 
@@ -55,14 +60,19 @@ public:
 			}
 
 			// execute task
-			task.first(_writer);
-			task.second.set_value();
-			_writer.flush();
+			try {
+				task.first(_writer);
+			} catch (...) {
+			}
+
+			task.second->store(true, std::memory_order_release);
 		}
 	}
 
 private:
-	std::deque<std::pair<task_type, std::promise<void>>> _queue;
+	typedef std::pair<task_type, std::shared_ptr<std::atomic_bool>> queue_type;
+
+	std::deque<queue_type> _queue;
 	std::mutex _mutex;
 	std::condition_variable _cv;
 	writer _writer;
