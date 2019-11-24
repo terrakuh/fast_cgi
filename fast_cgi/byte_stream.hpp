@@ -8,6 +8,7 @@
 #include <istream>
 #include <ostream>
 #include <streambuf>
+#include <utility>
 
 namespace fast_cgi {
 
@@ -28,19 +29,23 @@ public:
 class input_streambuf : public std::basic_streambuf<byte_type>
 {
 public:
-	input_streambuf(buffer& buffer) : _buffer(buffer)
-	{}
-	input_streambuf(input_streambuf&& move) : std::basic_streambuf(std::move(move)), _buffer(move._buffer)
+	input_streambuf(const std::shared_ptr<buffer>& buffer) : _buffer(buffer)
 	{}
 
 protected:
 	virtual int_type underflow() override
 	{
+		if (!_buffer) {
+			return traits_type::eof();
+		}
+
 		// wait for input
-		auto input = _buffer.wait_for_input();
+		auto input = _buffer->wait_for_input();
 
 		// reached end
 		if (input.second == 0) {
+			_buffer.reset();
+
 			return traits_type::eof();
 		}
 
@@ -52,41 +57,39 @@ protected:
 	}
 
 private:
-	buffer& _buffer;
+	std::shared_ptr<buffer> _buffer;
 };
 
 class output_streambuf : public std::basic_streambuf<byte_type>
 {
 public:
-	typedef std::function<void(const void*, std::size_t)> writer_type;
+	typedef std::function<std::pair<byte_type*, std::size_t>(const void*, std::size_t)> writer_type;
 
-	output_streambuf(allocator* allocator, std::size_t size, writer_type writer) : _writer(writer)
+	output_streambuf(byte_type* buffer, std::size_t size, writer_type writer) : _writer(writer)
 	{
-		_allocator = allocator;
-		_buffer	= allocator->allocate(size);
-		_size	  = size;
-	}
-	~output_streambuf()
-	{
-		if (_buffer) {
-			_allocator->deallocate(_buffer, _size);
-		}
+		setp(buffer, buffer + size);
 	}
 
 protected:
 	virtual int sync() override
 	{
-		if (pptr() != pbase()) {
-			_writer(pptr(), static_cast<std::size_t>(pptr() - pbase()));
-			setp(_buffer, _buffer + _size);
+		if (pptr() > pbase()) {
+			auto _buffer = _writer(pptr(), static_cast<std::size_t>(pptr() - pbase()));
+
+			setp(_buffer.first, _buffer.first + _buffer.second);
 		}
+
+		return 0;
 	}
 	virtual int_type overflow(int_type c = traits_type::eof()) override
 	{
 		// write
 		sync();
 
-		if (c != traits_type::eof()) {
+		// buffer is full
+		if (pptr() == epptr()) {
+			return traits_type::eof();
+		} else if (c != traits_type::eof()) {
 			sputc(traits_type::to_char_type(c));
 		}
 
@@ -94,10 +97,7 @@ protected:
 	}
 
 private:
-	allocator* _allocator;
-	byte_type* _buffer;
-	std::size_t _size;
-	std::function<void(const void*, std::size_t)> _writer;
+	writer_type _writer;
 };
 
 } // namespace fast_cgi
