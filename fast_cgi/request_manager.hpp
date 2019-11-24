@@ -1,5 +1,6 @@
 #pragma once
 
+#include "buffer_manager.hpp"
 #include "buffer_reader.hpp"
 #include "detail/record.hpp"
 #include "output_manager.hpp"
@@ -12,6 +13,7 @@
 #include <memory>
 #include <mutex>
 #include <ostream>
+#include <spdlog/spdlog.h>
 #include <streambuf>
 #include <type_traits>
 
@@ -20,190 +22,222 @@ namespace fast_cgi {
 class request_manager
 {
 public:
-	typedef detail::double_type id_type;
+    typedef detail::double_type id_type;
 
-	bool handle_request(reader& reader, output_manager& output_manager, detail::record record)
-	{
-		std::shared_ptr<request> request;
+    bool handle_request(reader& reader, output_manager& output_manager, detail::record record)
+    {
+        std::shared_ptr<request> request;
 
-		// ignore if request id is unknown
-		if (record.type != detail::TYPE::FCGI_BEGIN_REQUEST) {
-			std::lock_guard<std::mutex> lock(_mutex);
-			auto r = _requests.find(record.request_id);
+        // ignore if request id is unknown
+        if (record.type != detail::TYPE::FCGI_BEGIN_REQUEST) {
+            std::lock_guard<std::mutex> lock(_mutex);
+            auto r = _requests.find(record.request_id);
 
-			if (r == _requests.end()) {
-				reader.skip(record.content_length);
+            if (r == _requests.end()) {
+                reader.skip(record.content_length);
 
-				return true;
-			}
+                return true;
+            }
 
-			request = r->second;
-		}
+            request = r->second;
+        }
 
-		// request is set if type is not FCGI_BEGIN_REQUEST
-		switch (record.type) {
-		case detail::TYPE::FCGI_BEGIN_REQUEST: {
-			handle_begin_request(reader, output_manager, record);
+        // request is set if type is not FCGI_BEGIN_REQUEST
+        switch (record.type) {
+        case detail::TYPE::FCGI_BEGIN_REQUEST: {
+            _begin_request(reader, output_manager, record);
 
-			break;
-		}
-		case detail::TYPE::FCGI_ABORT_REQUEST: {
-			reader.skip(record.content_length);
+            break;
+        }
+        case detail::TYPE::FCGI_ABORT_REQUEST: {
+            reader.skip(record.content_length);
 
-			request->cancelled = true;
+            request->cancelled = true;
 
-			break;
-		}
-		case detail::TYPE::FCGI_PARAMS: {
-			_forward_to_buffer(record.content_length, request->params_buffer, reader);
+            break;
+        }
+        case detail::TYPE::FCGI_PARAMS: {
+            _forward_to_buffer(record.content_length, *request->params_buffer, reader);
 
-			break;
-		}
-		case detail::TYPE::FCGI_DATA: {
-			_forward_to_buffer(record.content_length, request->data_buffer, reader);
+            break;
+        }
+        case detail::TYPE::FCGI_DATA: {
+            _forward_to_buffer(record.content_length, *request->data_buffer, reader);
 
-			break;
-		}
-		case detail::TYPE::FCGI_STDIN: {
-			_forward_to_buffer(record.content_length, request->input_buffer, reader);
+            break;
+        }
+        case detail::TYPE::FCGI_STDIN: {
+            _forward_to_buffer(record.content_length, *request->input_buffer, reader);
 
-			break;
-		}
-		default: return false;
-		}
+            break;
+        }
+        default: return false;
+        }
 
-		return true;
-	}
+        return true;
+    }
 
 private:
-	typedef std::map<id_type, std::shared_ptr<request>> requests_type;
+    typedef std::map<id_type, std::shared_ptr<request>> requests_type;
 
-	std::mutex _mutex;
-	requests_type _requests;
-	std::shared_ptr<allocator> _allocator;
-	const std::shared_ptr<role_factory> _role_factories[3];
+    std::mutex _mutex;
+    requests_type _requests;
+    std::shared_ptr<allocator> _allocator;
+    const std::shared_ptr<role_factory> _role_factories[3];
 
-	void _forward_to_buffer(detail::double_type length, buffer& buffer, reader& reader)
-	{
-		// end of stream
-		if (length == 0) {
-			buffer.close();
-		} else {
-			auto token = buffer.begin_writing();
+    /**
+      Forwards *length* bytes to *buffer* read by *reader*. If *length* is zero the buffer is closed.
 
-			for (detail::double_type sent = 0; sent < length;) {
-				auto buf = token.request_buffer(length - sent);
+      @param length the length of the forward content
+      @param[in] buffer the buffer
+      @param[in] reader the reader
+     */
+    void _forward_to_buffer(detail::double_type length, buffer& buffer, reader& reader)
+    {
+        // end of stream
+        if (length == 0) {
+            buffer.close();
+        } else {
+            auto token = buffer.begin_writing();
 
-				// buffer is full -> ignore
-				if (buf.second == 0) {
-					reader.skip(length - sent);
+            for (detail::double_type sent = 0; sent < length;) {
+                auto buf = token.request_buffer(length - sent);
 
-					break;
-				}
+                // buffer is full -> ignore
+                if (buf.second == 0) {
+                    spdlog::warn("buffer is full...skipping {} bytes", length - sent);
 
-				reader.read(buf.first, buf.second);
+                    reader.skip(length - sent);
 
-				sent += buf.second;
-			}
-		}
-	}
-	void _request_hanlder(std::unique_ptr<role> role, std::shared_ptr<request> request)
-	{
-		auto version = detail::VERSION::FCGI_VERSION_1;
+                    break;
+                }
 
-		// read all parameters
-		{
-			buffer_reader reader(request.params_buffer);
+                reader.read(buf.first, buf.second);
 
-			request.params._read_parameters(reader);
-		}
+                sent += buf.second;
+            }
+        }
+    }
+    void _request_hanlder(std::unique_ptr<role> role, std::shared_ptr<request> request)
+    {
+        auto version = detail::VERSION::FCGI_VERSION_1;
 
-		// initialize input streams
-		input_streambuf sin(request.input_buffer);
-		input_streambuf sdata(request.data_buffer);
-		byte_istream input_stream(&sin);
-		byte_istream data_stream(&sdata);
+        // read all parameters
+        {
+            buffer_reader reader(request->params_buffer);
 
-		if (request.role_type == detail::ROLE::FCGI_FILTER || request.role_type == detail::ROLE::FCGI_RESPONDER) {
-			static_cast<responder*>(role.get())->_input_stream = &input_stream;
+            request->params._read_parameters(reader);
+        }
 
-			// initialize data stream
-			if (request.role_type == detail::ROLE::FCGI_FILTER) {
-				static_cast<filter*>(role.get())->_data_stream = &data_stream;
+        // initialize input streams
+        input_streambuf sin(request->input_buffer);
+        input_streambuf sdata(request->data_buffer);
+        byte_istream input_stream(&sin);
+        byte_istream data_stream(&sdata);
 
-				// wait until input stream finished reading
-				request.input_buffer.wait_for_all_input();
-			}
-		}
+        if (request->role_type == detail::ROLE::FCGI_FILTER || request->role_type == detail::ROLE::FCGI_RESPONDER) {
+            static_cast<responder*>(role.get())->_input_stream = &input_stream;
 
-		// create output streams
-		// todo: buffers nead to be copied
-		output_streambuf sout(_allocator.get(), 1024, [&request, version](const void* buffer, std::size_t size) {
-			detail::record(version, request.id).write(request.output_manager, detail::stdout_stream{ buffer, size });
-		});
-		output_streambuf serr(_allocator.get(), 1024, [&request, version](const void* buffer, std::size_t size) {
-			detail::record(version, request.id).write(request.output_manager, detail::stderr_stream{ buffer, size });
-		});
-		byte_ostream output_stream(&sout);
-		byte_ostream error_stream(&serr);
+            // initialize data stream
+            if (request->role_type == detail::ROLE::FCGI_FILTER) {
+                static_cast<filter*>(role.get())->_data_stream = &data_stream;
 
-		role->_output_stream = &output_stream;
-		role->_error_stream  = &error_stream;
-		role->_cancelled	 = &request->cancelled;
+                // wait until input stream finished reading
+                request->input_buffer->wait_for_all_input();
+            }
+        }
 
-		// execute the role
-		auto status = role->run();
+        // create output streams
+        // todo: buffers nead to be copied
+        buffer_manager buffer_manager(1024, _allocator);
+        output_streambuf sout(buffer_manager.new_page(), buffer_manager.page_size(),
+                              [&request, version, &buffer_manager](const void* buffer, std::size_t size) {
+                                  auto flag = detail::record::write(
+                                      version, request->id, request->output_manager,
+                                      detail::stdout_stream{ buffer, static_cast<detail::double_type>(size) });
 
-		// flush and finish all output streams
-		sout.pubsync();
-		detail::record(version, request.id).write(request.output_manager, detail::stdout_stream{ nullptr, 0 });
-		serr.pubsync();
-		detail::record(version, request.id).write(request.output_manager, detail::stderr_stream{ nullptr, 0 });
+                                  buffer_manager.free_page(buffer, flag);
 
-		// end request
-		detail::record(version, request.id)
-			.write(request.output_manager,
-				   detail::end_request{ status, detail::PROTOCOL_STATUS::FCGI_REQUEST_COMPLETE });
-	}
-	void _begin_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
-	{
-		auto body	= detail::begin_request::read(reader);
-		auto request = std::make_shared<request>(record.request_id, body.role, output_manager,
-												 (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0);
+                                  return { buffer_manager.new_page(), buffer_manager.page_size() };
+                              });
+        output_streambuf serr(buffer_manager.new_page(), buffer_manager.page_size(),
+                              [&request, version, &buffer_manager](const void* buffer, std::size_t size) {
+                                  auto flag = detail::record::write(
+                                      version, request->id, request->output_manager,
+                                      detail::stderr_stream{ buffer, static_cast<detail::double_type>(size) });
 
-		switch (body.role) {
-		case detail::ROLE::FCGI_AUTHORIZER:
-		case detail::ROLE::FCGI_FILTER:
-		case detail::ROLE::FCGI_RESPONDER: {
-			auto& factory = role_factories[body.role - 1];
+                                  buffer_manager.free_page(buffer, flag);
 
-			if (factory) {
-				auto role = factory->create();
+                                  return { buffer_manager.new_page(), buffer_manager.page_size() };
+                              });
+        byte_ostream output_stream(&sout);
+        byte_ostream error_stream(&serr);
 
-				// launch thread
-				request->handler_thread =
-					std::thread(&request_manager::_request_hanlder, this, std::move(role), request);
+        role->_output_stream = &output_stream;
+        role->_error_stream  = &error_stream;
+        role->_cancelled     = &request->cancelled;
 
-				break;
-			} // else fall through, because role is unimplemented
-		}
-		default: {
-			// reject because role is unknown
-			detail::record(detail::FCGI_VERSION_1, record.request_id)
-				.write(*output_manager, detail::end_request{ 0, detail::PROTOCOL_STATUS::FCGI_UNKNOWN_ROLE });
+        // execute the role
+        detail::quadruple_type status = -1;
 
-			return;
-		}
-		}
+        try {
+            status = role->run();
+        } catch (const std::exception& e) {
+            spdlog::error("role executor threw an exception ({})", e.what());
+        }
+        catch (...) {
+            spdlog::error("role executor threw an exception");
+        }
 
-		// add request
-		{
-			std::lock_guard<std::mutex> lock(mutex);
+        // flush and finish all output streams
+        sout.pubsync();
+        detail::record::write(version, request->id, request->output_manager, detail::stdout_stream{ nullptr, 0 });
+        serr.pubsync();
+        detail::record::write(version, request->id, request->output_manager, detail::stderr_stream{ nullptr, 0 });
 
-			// add request
-			requests.insert({ record.request_id, std::move(request) });
-		}
-	}
+        // end request
+        detail::record::write(version, request->id, request->output_manager,
+                              detail::end_request{ status, detail::PROTOCOL_STATUS::FCGI_REQUEST_COMPLETE });
+    }
+    void _begin_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
+    {
+        auto body    = detail::begin_request::read(reader);
+        auto request = std::make_shared<request>(record.request_id, body.role, output_manager,
+                                                 (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0);
+
+        switch (body.role) {
+        case detail::ROLE::FCGI_AUTHORIZER:
+        case detail::ROLE::FCGI_FILTER:
+        case detail::ROLE::FCGI_RESPONDER: {
+            auto& factory = role_factories[body.role - 1];
+
+            if (factory) {
+                auto role = factory->create();
+
+                // launch thread
+                request->handler_thread =
+                    std::thread(&request_manager::_request_hanlder, this, std::move(role), request);
+
+                break;
+            } // else fall through, because role is unimplemented
+        }
+        default: {
+            // reject because role is unknown
+            detail::record(detail::FCGI_VERSION_1, record.request_id)
+                .write(*output_manager, detail::end_request{ 0, detail::PROTOCOL_STATUS::FCGI_UNKNOWN_ROLE });
+
+            return;
+        }
+        }
+
+        // add request
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+
+            // add request
+            requests.insert({ record.request_id, std::move(request) });
+        }
+    }
 };
 
 } // namespace fast_cgi
