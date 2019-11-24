@@ -12,19 +12,10 @@
 
 namespace fast_cgi {
 
-typedef std::uint8_t byte_type;
+typedef char byte_type;
 
-class byte_ostream : public std::basic_ostream<byte_type>
-{
-public:
-	using std::basic_ostream<byte_type>::basic_ostream;
-};
-
-class byte_istream : public std::basic_istream<byte_type>
-{
-public:
-	using std::basic_istream<byte_type>::basic_istream;
-};
+typedef std::ostream byte_ostream;
+typedef std::istream byte_istream;
 
 class input_streambuf : public std::basic_streambuf<byte_type>
 {

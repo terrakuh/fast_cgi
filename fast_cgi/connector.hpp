@@ -9,8 +9,8 @@ namespace fast_cgi {
 class connector
 {
 public:
-	virtual ~connector() = default;
-	virtual std::unique_ptr<connection> accept() = 0;
+    virtual ~connector() = default;
+    virtual std::shared_ptr<connection> accept() = 0;
 
 };
 

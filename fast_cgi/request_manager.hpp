@@ -153,7 +153,7 @@ private:
         output_streambuf sout(buffer_manager.new_page(), buffer_manager.page_size(),
                               [&request, version, &buffer_manager](const void* buffer, std::size_t size) {
                                   auto flag = detail::record::write(
-                                      version, request->id, request->output_manager,
+                                      version, request->id, *request->output_manager,
                                       detail::stdout_stream{ buffer, static_cast<detail::double_type>(size) });
 
                                   buffer_manager.free_page(buffer, flag);
@@ -163,7 +163,7 @@ private:
         output_streambuf serr(buffer_manager.new_page(), buffer_manager.page_size(),
                               [&request, version, &buffer_manager](const void* buffer, std::size_t size) {
                                   auto flag = detail::record::write(
-                                      version, request->id, request->output_manager,
+                                      version, request->id, *request->output_manager,
                                       detail::stderr_stream{ buffer, static_cast<detail::double_type>(size) });
 
                                   buffer_manager.free_page(buffer, flag);
@@ -184,19 +184,18 @@ private:
             status = role->run();
         } catch (const std::exception& e) {
             spdlog::error("role executor threw an exception ({})", e.what());
-        }
-        catch (...) {
+        } catch (...) {
             spdlog::error("role executor threw an exception");
         }
 
         // flush and finish all output streams
         sout.pubsync();
-        detail::record::write(version, request->id, request->output_manager, detail::stdout_stream{ nullptr, 0 });
+        detail::record::write(version, request->id, *request->output_manager, detail::stdout_stream{ nullptr, 0 });
         serr.pubsync();
-        detail::record::write(version, request->id, request->output_manager, detail::stderr_stream{ nullptr, 0 });
+        detail::record::write(version, request->id, *request->output_manager, detail::stderr_stream{ nullptr, 0 });
 
         // end request
-        detail::record::write(version, request->id, request->output_manager,
+        detail::record::write(version, request->id, *request->output_manager,
                               detail::end_request{ status, detail::PROTOCOL_STATUS::FCGI_REQUEST_COMPLETE });
     }
     void _begin_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
@@ -209,7 +208,7 @@ private:
         case detail::ROLE::FCGI_AUTHORIZER:
         case detail::ROLE::FCGI_FILTER:
         case detail::ROLE::FCGI_RESPONDER: {
-            auto& factory = role_factories[body.role - 1];
+            auto& factory = _role_factories[body.role - 1];
 
             if (factory) {
                 auto role = factory->create();
@@ -223,8 +222,8 @@ private:
         }
         default: {
             // reject because role is unknown
-            detail::record(detail::FCGI_VERSION_1, record.request_id)
-                .write(*output_manager, detail::end_request{ 0, detail::PROTOCOL_STATUS::FCGI_UNKNOWN_ROLE });
+            detail::record::write(detail::FCGI_VERSION_1, record.request_id, *output_manager,
+                                  detail::end_request{ 0, detail::PROTOCOL_STATUS::FCGI_UNKNOWN_ROLE });
 
             return;
         }
@@ -232,10 +231,10 @@ private:
 
         // add request
         {
-            std::lock_guard<std::mutex> lock(mutex);
+            std::lock_guard<std::mutex> lock(_mutex);
 
             // add request
-            requests.insert({ record.request_id, std::move(request) });
+            _requests.insert({ record.request_id, std::move(request) });
         }
     }
 };

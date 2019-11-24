@@ -6,12 +6,14 @@
 #include "detail/record.hpp"
 #include "output_manager.hpp"
 #include "request_manager.hpp"
+#include "role.hpp"
 #include "writer.hpp"
 
 #include <cstddef>
 #include <memory>
 #include <spdlog/spdlog.h>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace fast_cgi {
@@ -24,10 +26,13 @@ public:
         _version = detail::VERSION::FCGI_VERSION_1;
     }
 
+    template<typename T>
+    typename std::enable_if<std::is_base_of<role, T>::value>::type set_role()
+    {}
     void run()
     {
         // accept
-        std::unique_ptr<connection> connection;
+        std::shared_ptr<connection> connection;
 
         while (connection = _connector->accept()) {
             spdlog::info("accepting new connection; launching new thread");
@@ -49,11 +54,11 @@ private:
     std::shared_ptr<connector> _connector;
     std::vector<std::thread> _connections;
 
-    void _connection_thread(std::unique_ptr<connection> connection)
+    void _connection_thread(std::shared_ptr<connection> connection)
     {
         volatile auto alive = true;
-        connection_reader reader(*connection);
-        output_manager output_manager(*connection);
+        connection_reader reader(connection);
+        output_manager output_manager(connection);
         std::thread output_thread(&fast_cgi::output_manager::run, &output_manager, std::ref(alive));
 
         _input_handler(alive, reader, output_manager);
@@ -68,8 +73,8 @@ private:
             auto record = detail::record::read(reader);
 
             // version mismatch
-            if (record.version != version) {
-                spdlog::critical("version mismatch (supported: {}|given: {})", version, record.version);
+            if (record.version != _version) {
+                spdlog::critical("version mismatch (supported: {}|given: {})", _version, record.version);
 
                 alive = false;
 
@@ -137,7 +142,7 @@ private:
         auto begin = answer->begin();
         auto end   = answer->end();
 
-        detail::record::write(_version, 0, output_manager, detail::name_value_pair::from_generator([answer, begin, end]() mutable{
+        detail::record::write(_version, 0, output_manager, detail::name_value_pair::from_generator([answer, begin, end]() mutable -> detail::name_value_pair::generated_type {
             if (begin != end) {
                 auto t = *begin;
 
@@ -147,7 +152,7 @@ private:
             }
 
             return {};
-		});
+        });
     }
 };
 
