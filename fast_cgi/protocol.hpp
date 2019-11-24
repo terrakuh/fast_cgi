@@ -1,5 +1,6 @@
 #pragma once
 
+#include "allocator.hpp"
 #include "connection.hpp"
 #include "connection_reader.hpp"
 #include "connector.hpp"
@@ -7,7 +8,6 @@
 #include "output_manager.hpp"
 #include "request_manager.hpp"
 #include "role.hpp"
-#include "allocator.hpp"
 #include "writer.hpp"
 
 #include <cstddef>
@@ -85,7 +85,7 @@ private:
 
             // process record
             switch (record.type) {
-            case detail::TYPE::GET_VALUES: {
+            case detail::TYPE::FCGI_GET_VALUES: {
                 _get_values(reader, output_manager, record);
 
                 break;
@@ -146,17 +146,19 @@ private:
         auto begin = answer->begin();
         auto end   = answer->end();
 
-        detail::record::write(_version, 0, output_manager, detail::name_value_pair::from_generator([answer, begin, end]() mutable -> detail::name_value_pair::generated_type {
-            if (begin != end) {
-                auto t = *begin;
+        detail::record::write(_version, 0, output_manager,
+                              detail::get_values_result::from_generator(
+                                  [answer, begin, end]() mutable -> detail::get_values_result::generated_type {
+                                      if (begin != end) {
+                                          auto t = *begin;
 
-                ++begin;
+                                          ++begin;
 
-                return t;
-            }
+                                          return t;
+                                      }
 
-            return {};
-        });
+                                      return {};
+                                  }));
     }
 };
 

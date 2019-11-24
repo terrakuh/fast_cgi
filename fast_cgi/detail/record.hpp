@@ -52,8 +52,6 @@ enum PROTOCOL_STATUS : single_type
 
 struct name_value_pair
 {
-    typedef const std::pair<std::string, std::string> generated_type;
-
     const quadruple_type name_length;
     const quadruple_type value_length;
 
@@ -62,14 +60,20 @@ struct name_value_pair
         auto name_length  = reader.read_variable();
         auto value_length = reader.read_variable();
 
-        return name_value_pair(name_length, value_length);
+        return { name_length, value_length };
     }
-    static name_value_pair from_generator(std::function<generated_type()> generator)
+};
+
+struct get_values_result
+{
+    typedef const std::pair<std::string, std::string> generated_type;
+
+    static get_values_result from_generator(std::function<generated_type()> generator)
     {
         // caclulate size
-        name_value_pair pair(0, 0);
+        get_values_result result{};
 
-        pair._generator = generator;
+        result._generator = generator;
 
         while (true) {
             auto value = generator();
@@ -79,12 +83,12 @@ struct name_value_pair
                 break;
             }
 
-            pair._size += s;
+            result._size += s;
         }
 
-        return pair;
+        return result;
     }
-    void write(writer& writer)
+    void write(writer& writer) const
     {
         while (true) {
             auto value = _generator();
@@ -99,20 +103,18 @@ struct name_value_pair
             writer.write(value.second.data(), value.second.size());
         }
     }
-    double_type size() noexcept
+    double_type size() const noexcept
     {
-        return (name_length > 127 ? 4 : 1) + (value_length > 127 ? 4 : 1);
+        return _size;
+    }
+    constexpr static TYPE type() noexcept
+    {
+        return TYPE::FCGI_GET_VALUES_RESULT;
     }
 
 private:
     double_type _size;
     std::function<generated_type()> _generator;
-
-    name_value_pair(quadruple_type name_length, quadruple_type value_length)
-        : name_length(name_length), value_length(value_length)
-    {
-        _size = 0;
-    }
 };
 
 struct unknown_type
@@ -120,7 +122,7 @@ struct unknown_type
     const TYPE record_type;
     // 7 bytes padding
 
-    void write(writer& writer)
+    void write(writer& writer) const
     {
         writer.write_all(record_type, single_type(), single_type(), single_type(), single_type(), single_type(),
                          single_type(), single_type());
@@ -141,7 +143,7 @@ struct end_request
     const PROTOCOL_STATUS protocol_status;
     // 3 bytes reserved
 
-    void write(writer& writer)
+    void write(writer& writer) const
     {
         writer.write_all(app_status, protocol_status, single_type(), single_type(), single_type());
     }
@@ -169,7 +171,7 @@ struct begin_request
 
         return { role, flags };
     }
-    void write(writer& writer)
+    void write(writer& writer) const
     {
         writer.write_all(role, flags, single_type(), single_type(), single_type(), single_type(), single_type());
     }
@@ -188,11 +190,11 @@ struct stdout_stream
     const void* const content;
     const double_type content_size;
 
-    void write(writer& writer)
+    void write(writer& writer) const
     {
         writer.write(content, content_size);
     }
-    double_type size() noexcept
+    double_type size() const noexcept
     {
         return content_size;
     }
@@ -207,11 +209,11 @@ struct stderr_stream
     const void* const content;
     const double_type content_size;
 
-    void write(writer& writer)
+    void write(writer& writer) const
     {
         writer.write(content, content_size);
     }
-    double_type size() noexcept
+    double_type size() const noexcept
     {
         return content_size;
     }
