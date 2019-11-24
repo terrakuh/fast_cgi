@@ -3,7 +3,9 @@
 #include "connection.hpp"
 #include "detail/config.hpp"
 
+#include <cstdint>
 #include <memory>
+#include <utility>
 
 namespace fast_cgi {
 
@@ -11,44 +13,60 @@ class writer
 {
 public:
 	template<typename T>
-	typename std::enable_if<(std::is_unsigned<T>::value && (sizeof(T) <= 2 || sizeof(T) == 4))>::value write(T value)
-	{}
-	void write(const void* src, std::size_t size)
-	{}
-	void write_variable(detail::quadruple_type value)
-	{}
+	typename std::enable_if<(std::is_unsigned<T>::value && (sizeof(T) <= 2 || sizeof(T) == 4)), std::size_t>::type
+		write(T value)
+	{
+		if (sizeof(T) == 1) {
+			_connection->write(&value, 1);
+		} else if (sizeof(T) == 2) {
+			std::uint8_t buf[] = { value >> 8, value & 0xff };
+
+			return _connection->write(buf, 2);
+		}
+
+		std::uint8_t buf[] = { value >> 24 | 0x80, value >> 16 & 0xff, value >> 8 & 0xff, value & 0xff };
+
+		return _connection->write(buf, 4);
+	}
+	std::size_t write(const void* src, std::size_t size)
+	{
+		return _connection->write(src, size);
+	}
+	std::size_t write_variable(detail::quadruple_type value)
+	{
+		if (value <= 127) {
+			return write(static_cast<detail::single_type>(value));
+		}
+
+		return write(value);
+	}
 	void flush()
-	{}
+	{
+		_connection->flush();
+	}
 	/*
 	 Writes all values to the stream encoded as big endian.
 
 	*/
-	template<typename... T>
-	std::size_t write_all(T&&... values)
+	template<typename T, typename... Other>
+	std::size_t write_all(T&& value, Other&&... other)
 	{
-		constexpr auto size = size_of<T...>();
+		auto s = write(std::forward<T>(value));
 
-		reserve(size);
-
-		return size;
+		return s + write_all(std::forward<Other>(other)...);
 	}
-
-protected:
-	virtual void reserve(std::size_t length) = 0;
+	std::size_t write_all()
+	{
+		return 0;
+	}
 
 private:
-	std::shared_ptr<connection> connection;
+	friend class output_manager;
 
-	template<typename T>
-	constexpr static std::size_t size_of() noexcept
-	{
-		return sizeof(T);
-	}
-	template<typename T, typename... Other>
-	constexpr static std::size_t size_of() noexcept
-	{
-		return sizeof(T) + size_of<Other...>();
-	}
+	std::shared_ptr<connection> _connection;
+
+	writer(const std::shared_ptr<connection>& connection) : _connection(connection)
+	{}
 };
 
 } // namespace fast_cgi
