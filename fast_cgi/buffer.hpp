@@ -104,16 +104,6 @@ public:
 	};
 
 	/**
-	  Creates an unusable buffer.
-	 */
-	buffer() noexcept
-	{
-		_allocator	 = nullptr;
-		_write_total   = 0;
-		_consume_total = 0;
-		_max_size	  = 0;
-	}
-	/**
 	  Creates a new buffer with the given max size.
 
 	  @param allocator the memory allocator
@@ -126,8 +116,13 @@ public:
 		_max_size	  = max_size;
 	}
 	buffer(const buffer& copy) = delete;
-	buffer(buffer&& move)
-	{}
+	buffer(buffer&& move)	  = delete;
+	~buffer()
+	{
+		for (auto& page : _pages) {
+			_allocator->deallocate(page.begin, page.size);
+		}
+	}
 	/**
 	  Blocks until the buffer has reached max size.
 	 */
