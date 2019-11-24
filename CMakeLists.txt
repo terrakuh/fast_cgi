@@ -4,11 +4,12 @@ project("fast_cgi"
 	LANGUAGES CXX)
 
 option(FAST_CGI_BUILD_EXAMPLES "Build examples." ON)
+option(FAST_CGI_ENABLE_LOGGING "Enable logging." ON)
 
 add_library("fast_cgi" INTERFACE)
 target_include_directories("fast_cgi"
-	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
-
+	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
+	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include")
 
 if(FAST_CGI_BUILD_EXAMPLES)
 	file(GLOB FAST_CGI_EXAMPLE_SOURCES
