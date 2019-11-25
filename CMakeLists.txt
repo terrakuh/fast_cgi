@@ -5,13 +5,15 @@ project("fast_cgi"
 
 option(FAST_CGI_BUILD_EXAMPLES "Build examples." ON)
 option(FAST_CGI_ENABLE_LOGGING "Enable logging." ON)
+option(FAST_CGI_BUILD_TESTS "Build tests." ON)
 
 find_package(Threads REQUIRED)
 
 add_library("fast_cgi" INTERFACE)
 target_include_directories("fast_cgi"
 	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
-	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include")
+	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include"
+	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/Catch2/include")
 target_link_libraries("fast_cgi"
 	INTERFACE ${CMAKE_THREAD_LIBS_INIT})
 
@@ -26,4 +28,10 @@ if(FAST_CGI_BUILD_EXAMPLES)
 		target_link_libraries(${FAST_CGI_EXAMPLE_NAME}
 			PUBLIC "fast_cgi")
 	endforeach()
+endif()
+
+if(FAST_CGI_BUILD_TESTS)
+	include(CTest)
+	enable_testing()
+
 endif()
