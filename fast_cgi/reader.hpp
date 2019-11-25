@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <type_traits>
 #include <cstdint>
+#include <spdlog/spdlog.h>
 
 namespace fast_cgi {
 
@@ -23,6 +24,7 @@ public:
         detail::quadruple_type value = 0;
 
         if (read(buffer, 1) != 1) {
+            spdlog::critical("input buffer exhausted");
         }
 
         value = buffer[0];
@@ -50,12 +52,13 @@ public:
 
         // end reached
         if (read(buffer, sizeof(T)) != sizeof(T)) {
+            spdlog::critical("input buffer exhausted");
         }
 
         if (sizeof(T) == 1) {
             value = buffer[0];
         } else if (sizeof(T) == 2) {
-            value = buffer[0] << 8 + buffer[1];
+            value = (buffer[0] << 8) + buffer[1];
         } else {
             value = ((buffer[0] & 0x7f) << 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
         }

@@ -224,6 +224,8 @@ private:
             } // else fall through, because role is unimplemented
         }
         default: {
+            spdlog::error("begin request record rejected because of unknown/unimplemented role {}", body.role);
+
             // reject because role is unknown
             detail::record::write(detail::FCGI_VERSION_1, record.request_id, *output_manager,
                                   detail::end_request{ 0, detail::PROTOCOL_STATUS::FCGI_UNKNOWN_ROLE });

@@ -22,7 +22,8 @@ namespace fast_cgi {
 class protocol
 {
 public:
-    protocol(std::shared_ptr<connector> connector) : _connector(std::move(connector))
+    protocol(const std::shared_ptr<connector>& connector, const std::shared_ptr<allocator>& allocator)
+        : _connector(connector), _allocator(allocator)
     {
         _version = detail::VERSION::FCGI_VERSION_1;
     }
@@ -74,6 +75,9 @@ private:
         while (alive) {
             auto record = detail::record::read(reader);
 
+            spdlog::info("received record: version={}, type={}, id={}, length={}, padding={}", record.version,
+                         record.type, record.request_id, record.content_length, record.padding_length);
+
             // version mismatch
             if (record.version != _version) {
                 spdlog::critical("version mismatch (supported: {}|given: {})", _version, record.version);
@@ -102,7 +106,8 @@ private:
                 reader.skip(record.content_length);
 
                 // tell the server that the record was ignored
-                detail::record::write(_version, record.request_id, *output_manager, detail::unknown_type{ record.type });
+                detail::record::write(_version, record.request_id, *output_manager,
+                                      detail::unknown_type{ record.type });
 
                 break;
             }
