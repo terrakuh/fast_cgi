@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.1)
 project("fast_cgi"
 	LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 option(FAST_CGI_BUILD_EXAMPLES "Build examples." ON)
 option(FAST_CGI_ENABLE_LOGGING "Enable logging." ON)
 option(FAST_CGI_BUILD_TESTS "Build tests." ON)

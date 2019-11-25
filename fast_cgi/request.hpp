@@ -15,11 +15,11 @@ struct request
     const detail::double_type id;
     const detail::ROLE role_type;
     std::thread handler_thread;
-    params params;
+    class params params;
     std::shared_ptr<buffer> params_buffer;
     std::shared_ptr<buffer> input_buffer;
     std::shared_ptr<buffer> data_buffer;
-    std::shared_ptr<output_manager> output_manager;
+    std::shared_ptr<class output_manager> output_manager;
     volatile bool cancelled;
     const bool close_connection;
 

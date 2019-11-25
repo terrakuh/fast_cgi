@@ -4,6 +4,7 @@
 #include "reader.hpp"
 
 #include <map>
+#include <spdlog/spdlog.h>
 #include <string>
 #include <utility>
 
@@ -37,11 +38,15 @@ private:
 
             reader.read(&name[0], pair.name_length);
 
+            spdlog::debug("read parameter: {}, {}:{}", name, pair.name_length, pair.value_length);
+
             auto& value = _parameters[std::move(name)];
 
             value.resize(pair.value_length);
 
             reader.read(&value[0], pair.value_length);
+
+            spdlog::debug("with value: {}", value);
         }
     }
 };

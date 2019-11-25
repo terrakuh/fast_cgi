@@ -10,7 +10,9 @@
 #include "role.hpp"
 #include "writer.hpp"
 
+#include <array>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <spdlog/spdlog.h>
 #include <string>
@@ -30,7 +32,11 @@ public:
 
     template<typename T>
     typename std::enable_if<std::is_base_of<role, T>::value>::type set_role()
-    {}
+    {
+        if (std::is_base_of<responder, T>::value) {
+            _role_factories[0] = [] { return std::unique_ptr<role>(new T()); };
+        }
+    }
     void run()
     {
         // accept
@@ -56,6 +62,7 @@ private:
     std::shared_ptr<connector> _connector;
     std::vector<std::thread> _connections;
     std::shared_ptr<allocator> _allocator;
+    std::array<std::function<std::unique_ptr<role>()>, 3> _role_factories;
 
     void _connection_thread(std::shared_ptr<connection> connection)
     {
@@ -70,7 +77,7 @@ private:
     }
     void _input_handler(volatile bool& alive, reader& reader, const std::shared_ptr<output_manager>& output_manager)
     {
-        request_manager request_manager(_allocator, {});
+        request_manager request_manager(_allocator, _role_factories);
 
         while (alive) {
             auto record = detail::record::read(reader);

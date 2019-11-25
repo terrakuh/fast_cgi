@@ -94,11 +94,4 @@ private:
     byte_istream* _data_stream;
 };
 
-class role_factory
-{
-public:
-    virtual ~role_factory()                 = default;
-    virtual std::unique_ptr<role> create() = 0;
-};
-
 } // namespace fast_cgi

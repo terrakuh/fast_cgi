@@ -26,7 +26,7 @@ public:
     typedef detail::double_type id_type;
 
     request_manager(const std::shared_ptr<allocator>& allocator,
-                    const std::array<std::shared_ptr<role_factory>, 3>& role_factories)
+                    const std::array<std::function<std::unique_ptr<role>()>, 3>& role_factories)
         : _allocator(allocator), _role_factories(role_factories)
     {}
     bool handle_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
@@ -72,7 +72,7 @@ public:
             break;
         }
         case detail::TYPE::FCGI_STDIN: {
-            _forward_to_buffer(record.content_length, *request->input_buffer, reader);
+            //_forward_to_buffer(record.content_length, *request->input_buffer, reader);
 
             break;
         }
@@ -88,7 +88,7 @@ private:
     std::mutex _mutex;
     requests_type _requests;
     std::shared_ptr<allocator> _allocator;
-    std::array<std::shared_ptr<role_factory>, 3> _role_factories;
+    std::array<std::function<std::unique_ptr<role>()>, 3> _role_factories;
 
     /**
       Forwards *length* bytes to *buffer* read by *reader*. If *length* is zero the buffer is closed.
@@ -125,13 +125,18 @@ private:
     }
     void _request_hanlder(std::unique_ptr<role> role, std::shared_ptr<request> request)
     {
+        spdlog::info("{}, {}", (void*)role.get(), (void*)request.get());
         auto version = detail::VERSION::FCGI_VERSION_1;
 
         // read all parameters
         {
             buffer_reader reader(request->params_buffer);
 
+            spdlog::debug("reading all parameters");
+
             request->params._read_parameters(reader);
+
+            // initialize input buffers
         }
 
         // initialize input streams
@@ -214,11 +219,15 @@ private:
             auto& factory = _role_factories[body.role - 1];
 
             if (factory) {
-                auto role = factory->create();
+                auto role = factory();
 
+
+                spdlog::info("created role; launching request thread");
+                request->params_buffer.reset(new buffer(_allocator, 99999));
                 // launch thread
                 request->handler_thread =
                     std::thread(&request_manager::_request_hanlder, this, std::move(role), request);
+                spdlog::info("created role; launching request thread");
 
                 break;
             } // else fall through, because role is unimplemented
