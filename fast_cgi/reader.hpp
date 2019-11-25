@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <type_traits>
+#include <cstdint>
 
 namespace fast_cgi {
 

@@ -60,14 +60,14 @@ private:
     {
         volatile auto alive = true;
         connection_reader reader(connection);
-        output_manager output_manager(connection);
-        std::thread output_thread(&fast_cgi::output_manager::run, &output_manager, std::ref(alive));
+        auto output_manager = std::make_shared<class output_manager>(connection);
+        std::thread output_thread(&fast_cgi::output_manager::run, output_manager.get(), std::ref(alive));
 
         _input_handler(alive, reader, output_manager);
 
         output_thread.join();
     }
-    void _input_handler(volatile bool& alive, reader& reader, output_manager& output_manager)
+    void _input_handler(volatile bool& alive, reader& reader, const std::shared_ptr<output_manager>& output_manager)
     {
         request_manager request_manager(_allocator, {});
 
@@ -86,7 +86,7 @@ private:
             // process record
             switch (record.type) {
             case detail::TYPE::FCGI_GET_VALUES: {
-                _get_values(reader, output_manager, record);
+                _get_values(reader, *output_manager, record);
 
                 break;
             }
@@ -102,7 +102,7 @@ private:
                 reader.skip(record.content_length);
 
                 // tell the server that the record was ignored
-                detail::record::write(_version, record.request_id, output_manager, detail::unknown_type{ record.type });
+                detail::record::write(_version, record.request_id, *output_manager, detail::unknown_type{ record.type });
 
                 break;
             }
@@ -138,7 +138,7 @@ private:
             if (name == max_conns) {
             } else if (name == max_reqs) {
             } else if (name == mpxs_conns) {
-                answer[mpxs_conns] = "1";
+                (*answer)[mpxs_conns] = "1";
             }
         }
 

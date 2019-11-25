@@ -25,8 +25,7 @@ struct request
 
     request(detail::double_type id, detail::ROLE role_type, const std::shared_ptr<class output_manager>& output_manager,
             bool close_connection)
-        : id(id), role_type(role_type), params_buffer(nullptr, 0), output_manager(output_manager),
-          close_connection(close_connection)
+        : id(id), role_type(role_type), output_manager(output_manager), close_connection(close_connection)
     {
         cancelled = false;
     }

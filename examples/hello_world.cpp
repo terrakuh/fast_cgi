@@ -21,7 +21,7 @@ public:
 int main()
 {
 	// create server
-	fast_cgi::protocol protocol(std::make_shared<tcp_connector>("0.0.0.0", 6545));
+	fast_cgi::protocol protocol(nullptr);
 
 	protocol.set_role<responder>();
 

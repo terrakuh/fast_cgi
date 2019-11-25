@@ -53,11 +53,12 @@ public:
     template<typename T, typename... Other>
     std::size_t write_all(T&& value, Other&&... other)
     {
-        auto s = write(std::forward<T>(value));
+        /*auto s = write(std::forward<T>(value));
 
-        return s + write_all(std::forward<Other>(other)...);
+        return s + write_all(std::forward<Other>(other)...);*/
+        return 0;
     }
-    std::size_t write_all()
+    std::size_t write_all() noexcept
     {
         return 0;
     }

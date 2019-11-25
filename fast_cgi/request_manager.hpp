@@ -29,7 +29,7 @@ public:
                     const std::array<std::shared_ptr<role_factory>, 3>& role_factories)
         : _allocator(allocator), _role_factories(role_factories)
     {}
-    bool handle_request(reader& reader, output_manager& output_manager, detail::record record)
+    bool handle_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
     {
         std::shared_ptr<request> request;
 
