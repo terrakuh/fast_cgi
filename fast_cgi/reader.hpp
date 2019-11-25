@@ -20,7 +20,7 @@ public:
     virtual ~reader() = default;
     detail::quadruple_type read_variable()
     {
-        char buffer[sizeof(detail::quadruple_type)];
+        std::uint8_t buffer[sizeof(detail::quadruple_type)];
         detail::quadruple_type value = 0;
 
         if (read(buffer, 1) != 1) {
@@ -29,12 +29,13 @@ public:
 
         value = buffer[0];
 
-        if (value > 127) {
+        if (value & 0x80) {
             // read more
             if (read(buffer + 1, sizeof(buffer) - 1) != sizeof(buffer) - 1) {
+                spdlog::critical("input buffer exhausted");
             }
 
-            value = ((value & 0x7f) << 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
+            value = ((value & 0x7f) << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3];
         }
 
         return value;
@@ -47,7 +48,7 @@ public:
     template<typename T>
     typename std::enable_if<valid_type<T>::value, T>::type read()
     {
-        char buffer[sizeof(T)];
+        std::uint8_t buffer[sizeof(T)];
         T value = 0;
 
         // end reached
@@ -58,9 +59,9 @@ public:
         if (sizeof(T) == 1) {
             value = buffer[0];
         } else if (sizeof(T) == 2) {
-            value = (buffer[0] << 8) + buffer[1];
+            value = (buffer[0] << 8) | buffer[1];
         } else {
-            value = ((buffer[0] & 0x7f) << 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
+            value = ((buffer[0] & 0x7f) << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3];
         }
 
         return value;
