@@ -6,13 +6,14 @@
 #include "params.hpp"
 
 #include <memory>
+#include <type_traits>
 
 namespace fast_cgi {
 
 class role
 {
 public:
-    typedef detail::quadruple_type status_code_type;
+    typedef typename std::make_signed<detail::quadruple_type>::type status_code_type;
 
     role() noexcept
     {

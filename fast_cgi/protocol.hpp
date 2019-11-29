@@ -5,11 +5,11 @@
 #include "connection_reader.hpp"
 #include "connector.hpp"
 #include "detail/record.hpp"
+#include "log.hpp"
 #include "output_manager.hpp"
 #include "request_manager.hpp"
 #include "role.hpp"
 #include "writer.hpp"
-#include "log.hpp"
 
 #include <array>
 #include <cstddef>
@@ -78,6 +78,8 @@ private:
         }
 
         output_thread.join();
+
+        LOG(info("connection thread terminating"));
     }
     void _input_handler(volatile bool& alive, reader& reader, const std::shared_ptr<output_manager>& output_manager)
     {
@@ -86,8 +88,8 @@ private:
         while (alive) {
             auto record = detail::record::read(reader);
 
-            LOG(info("received record: version={}, type={}, id={}, length={}, padding={}", record.version,
-                         record.type, record.request_id, record.content_length, record.padding_length));
+            LOG(info("received record: version={}, type={}, id={}, length={}, padding={}", record.version, record.type,
+                     record.request_id, record.content_length, record.padding_length));
 
             // version mismatch
             if (record.version != _version) {

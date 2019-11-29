@@ -33,6 +33,8 @@ public:
     {
         for (auto& request : _requests) {
             if (request.second->handler_thread.joinable()) {
+                LOG(debug("joining request({}) thread", request.first));
+
                 request.second->handler_thread.join();
             }
         }
@@ -164,7 +166,7 @@ private:
                 request->input_buffer->wait_for_all_input();
             }
         }
-        LOG(info("ptr: {}", (void*) _allocator.get()));
+
         // create output streams
         buffer_manager buffer_manager(1024, _allocator);
         output_streambuf sout([&request, version, &buffer_manager](void* buffer,
@@ -187,17 +189,19 @@ private:
         });
         byte_ostream output_stream(&sout);
         byte_ostream error_stream(&serr);
-        LOG(info("hello"));
+
         role->_params        = &request->params;
         role->_output_stream = &output_stream;
         role->_error_stream  = &error_stream;
         role->_cancelled     = &request->cancelled;
 
         // execute the role
-        detail::quadruple_type status = static_cast<detail::quadruple_type>(-1);
+        role::status_code_type status = -1;
 
         try {
             status = role->run();
+
+            LOG(info("role finished with status code={}", status));
         } catch (const std::exception& e) {
             LOG(error("role executor threw an exception ({})", e.what()));
         } catch (...) {
@@ -212,7 +216,8 @@ private:
 
         // end request
         detail::record::write(version, request->id, *request->output_manager,
-                              detail::end_request{ status, detail::PROTOCOL_STATUS::FCGI_REQUEST_COMPLETE });
+                              detail::end_request{ static_cast<detail::quadruple_type>(status),
+                                                   detail::PROTOCOL_STATUS::FCGI_REQUEST_COMPLETE });
     }
     void _begin_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
     {
