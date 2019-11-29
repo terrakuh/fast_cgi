@@ -1,8 +1,8 @@
 #pragma once
 
 #include "detail/record.hpp"
-#include "reader.hpp"
 #include "log.hpp"
+#include "reader.hpp"
 
 #include <map>
 #include <string>
@@ -13,11 +13,21 @@ namespace fast_cgi {
 class params
 {
 public:
+    typedef std::map<std::string, std::string> map_type;
+
     constexpr static auto REQUEST_URI    = "REQUEST_URI";
     constexpr static auto QUERY_STRING   = "QUERY_STRING";
     constexpr static auto CONTENT_LENGTH = "CONTENT_LENGTH";
     constexpr static auto CONTENT_TYPE   = "CONTENT_TYPE";
 
+    map_type::const_iterator begin() const
+    {
+        return _parameters.begin();
+    }
+    map_type::const_iterator end() const
+    {
+        return _parameters.end();
+    }
     const std::string& operator[](const std::string& key) const
     {
         return _parameters.at(key);
@@ -26,7 +36,7 @@ public:
 private:
     friend class request_manager;
 
-    std::map<std::string, std::string> _parameters;
+    map_type _parameters;
 
     void _read_parameters(reader& reader)
     {
