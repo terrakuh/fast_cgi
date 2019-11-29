@@ -2,6 +2,7 @@
 
 #include "byte_stream.hpp"
 #include "detail/config.hpp"
+#include "exception/invalid_role_exception.hpp"
 #include "params.hpp"
 
 #include <memory>
@@ -62,8 +63,12 @@ public:
     {
         _input_stream = nullptr;
     }
-    byte_istream& input() noexcept
+    byte_istream& input()
     {
+        if (!_input_stream) {
+            throw exception::invalid_role_exception("this role wasn't initialized as responder or filter");
+        }
+
         return *_input_stream;
     }
 
@@ -83,8 +88,12 @@ public:
     {
         _data_stream = nullptr;
     }
-    byte_istream& data() noexcept
+    byte_istream& data()
     {
+        if (!_data_stream) {
+            throw exception::invalid_role_exception("this role wasn't initialized as filter");
+        }
+
         return *_data_stream;
     }
 
