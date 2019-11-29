@@ -2,12 +2,12 @@
 
 #include "buffer.hpp"
 #include "reader.hpp"
+#include "log.hpp"
 
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <spdlog/spdlog.h>
 
 namespace fast_cgi {
 
@@ -23,9 +23,9 @@ public:
         // need more
         while (size > 0) {
             if (_begin >= _end) {
-                spdlog::trace("waiting for input");
+                LOG(trace("waiting for input"));
                 auto buf = _buffer->wait_for_input();
-                spdlog::trace("got input {}", buf.second);
+                LOG(trace("got input {}", buf.second));
 
                 // buffer is empty
                 if (!buf.second) {

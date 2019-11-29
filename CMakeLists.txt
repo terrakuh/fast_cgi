@@ -11,6 +11,8 @@ option(FAST_CGI_ENABLE_LOGGING "Enable logging." ON)
 option(FAST_CGI_BUILD_TESTS "Build tests." ON)
 
 find_package(Threads REQUIRED)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/log.hpp.in"
+	"${CMAKE_CURRENT_SOURCE_DIR}/fast_cgi/log.hpp")
 
 add_library("fast_cgi" INTERFACE)
 target_include_directories("fast_cgi"
@@ -18,7 +20,7 @@ target_include_directories("fast_cgi"
 	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include"
 	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/Catch2/include")
 target_link_libraries("fast_cgi"
-	INTERFACE ${CMAKE_THREAD_LIBS_INIT})
+	INTERFACE "pthread")
 
 if(FAST_CGI_BUILD_EXAMPLES)
 	file(GLOB FAST_CGI_EXAMPLE_SOURCES

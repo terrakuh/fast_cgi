@@ -9,12 +9,12 @@
 #include "request_manager.hpp"
 #include "role.hpp"
 #include "writer.hpp"
+#include "log.hpp"
 
 #include <array>
 #include <cstddef>
 #include <functional>
 #include <memory>
-#include <spdlog/spdlog.h>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -43,7 +43,7 @@ public:
         std::shared_ptr<connection> connection;
 
         while ((connection = _connector->accept())) {
-            spdlog::info("accepted new connection; launching new thread");
+            LOG(info("accepted new connection; launching new thread"));
 
             _connections.push_back(std::thread(&protocol::_connection_thread, this, std::move(connection)));
         }
@@ -71,7 +71,11 @@ private:
         auto output_manager = std::make_shared<class output_manager>(connection);
         std::thread output_thread(&fast_cgi::output_manager::run, output_manager.get(), std::ref(alive));
 
-        _input_handler(alive, reader, output_manager);
+        try {
+            _input_handler(alive, reader, output_manager);
+        } catch (const exception::io_exception& e) {
+            LOG(info("buffer closed ({})", e.what()));
+        }
 
         output_thread.join();
     }
@@ -82,12 +86,12 @@ private:
         while (alive) {
             auto record = detail::record::read(reader);
 
-            spdlog::info("received record: version={}, type={}, id={}, length={}, padding={}", record.version,
-                         record.type, record.request_id, record.content_length, record.padding_length);
+            LOG(info("received record: version={}, type={}, id={}, length={}, padding={}", record.version,
+                         record.type, record.request_id, record.content_length, record.padding_length));
 
             // version mismatch
             if (record.version != _version) {
-                spdlog::critical("version mismatch (supported: {}|given: {})", _version, record.version);
+                LOG(critical("version mismatch (supported: {}|given: {})", _version, record.version));
 
                 alive = false;
 
@@ -107,7 +111,7 @@ private:
                     break;
                 }
 
-                spdlog::warn("skipping record because of unkown type {}", record.type);
+                LOG(warn("skipping record because of unkown type {}", record.type));
 
                 // ignore body
                 reader.skip(record.content_length);

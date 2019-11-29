@@ -2,9 +2,9 @@
 
 #include "detail/record.hpp"
 #include "reader.hpp"
+#include "log.hpp"
 
 #include <map>
-#include <spdlog/spdlog.h>
 #include <string>
 #include <utility>
 
@@ -30,23 +30,23 @@ private:
 
     void _read_parameters(reader& reader)
     {
-        while (true) {
-            auto pair = detail::name_value_pair::read(reader);
-            std::string name;
+        try {
+            while (true) {
+                auto pair = detail::name_value_pair::read(reader);
+                std::string name;
+                std::string value;
 
-            name.resize(pair.name_length);
+                name.resize(pair.name_length);
+                reader.read(&name[0], pair.name_length);
 
-            reader.read(&name[0], pair.name_length);
+                value.resize(pair.value_length);
+                reader.read(&value[0], pair.value_length);
 
-            spdlog::debug("read parameter: {}, {}:{}", name, pair.name_length, pair.value_length);
+                LOG(debug("read parameter: {}={}", name, value));
 
-            auto& value = _parameters[std::move(name)];
-
-            value.resize(pair.value_length);
-
-            reader.read(&value[0], pair.value_length);
-
-            spdlog::debug("with value: {}", value);
+                _parameters[std::move(name)] = std::move(value);
+            }
+        } catch (const exception::io_exception& e) {
         }
     }
 };

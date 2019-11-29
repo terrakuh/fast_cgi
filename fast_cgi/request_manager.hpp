@@ -7,6 +7,7 @@
 #include "params.hpp"
 #include "request.hpp"
 #include "role.hpp"
+#include "log.hpp"
 
 #include <array>
 #include <istream>
@@ -14,7 +15,6 @@
 #include <memory>
 #include <mutex>
 #include <ostream>
-#include <spdlog/spdlog.h>
 #include <streambuf>
 #include <type_traits>
 
@@ -110,7 +110,7 @@ private:
 
                 // buffer is full -> ignore
                 if (buf.second == 0) {
-                    spdlog::warn("buffer is full...skipping {} bytes", length - sent);
+                    LOG(warn("buffer is full...skipping {} bytes", length - sent));
 
                     reader.skip(length - sent);
 
@@ -125,14 +125,14 @@ private:
     }
     void _request_hanlder(std::unique_ptr<role> role, std::shared_ptr<request> request)
     {
-        spdlog::info("{}, {}", (void*)role.get(), (void*)request.get());
+        LOG(info("{}, {}", (void*) role.get(), (void*) request.get()));
         auto version = detail::VERSION::FCGI_VERSION_1;
 
         // read all parameters
         {
             buffer_reader reader(request->params_buffer);
 
-            spdlog::debug("reading all parameters");
+            LOG(debug("reading all parameters"));
 
             request->params._read_parameters(reader);
 
@@ -156,9 +156,8 @@ private:
                 request->input_buffer->wait_for_all_input();
             }
         }
-
+        LOG(info("ptr: {}", (void*) _allocator.get()));
         // create output streams
-        // todo: buffers nead to be copied
         buffer_manager buffer_manager(1024, _allocator);
         output_streambuf sout([&request, version, &buffer_manager](void* buffer,
                                                                    std::size_t size) -> std::pair<void*, std::size_t> {
@@ -180,7 +179,7 @@ private:
         });
         byte_ostream output_stream(&sout);
         byte_ostream error_stream(&serr);
-
+        LOG(info("hello"));
         role->_output_stream = &output_stream;
         role->_error_stream  = &error_stream;
         role->_cancelled     = &request->cancelled;
@@ -191,9 +190,9 @@ private:
         try {
             status = role->run();
         } catch (const std::exception& e) {
-            spdlog::error("role executor threw an exception ({})", e.what());
+            LOG(error("role executor threw an exception ({})", e.what()));
         } catch (...) {
-            spdlog::error("role executor threw an exception");
+            LOG(error("role executor threw an exception"));
         }
 
         // flush and finish all output streams
@@ -221,19 +220,18 @@ private:
             if (factory) {
                 auto role = factory();
 
-
-                spdlog::info("created role; launching request thread");
+                LOG(info("created role; launching request thread"));
                 request->params_buffer.reset(new buffer(_allocator, 99999));
                 // launch thread
                 request->handler_thread =
                     std::thread(&request_manager::_request_hanlder, this, std::move(role), request);
-                spdlog::info("created role; launching request thread");
+                LOG(info("created role; launching request thread"));
 
                 break;
             } // else fall through, because role is unimplemented
         }
         default: {
-            spdlog::error("begin request record rejected because of unknown/unimplemented role {}", body.role);
+            LOG(error("begin request record rejected because of unknown/unimplemented role {}", body.role));
 
             // reject because role is unknown
             detail::record::write(detail::FCGI_VERSION_1, record.request_id, *output_manager,

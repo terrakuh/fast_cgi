@@ -1,6 +1,7 @@
 #pragma once
 
 #include "allocator.hpp"
+#include "log.hpp"
 
 #include <atomic>
 #include <cstddef>
@@ -13,8 +14,9 @@ namespace fast_cgi {
 class buffer_manager
 {
 public:
-    buffer_manager(std::size_t page_size, const std::shared_ptr<allocator>& allocator) : _allocator(allocator)
+    buffer_manager(std::size_t page_size, const std::shared_ptr<allocator>& allocator)
     {
+        LOG(info("hello {}", (void*) allocator.get()));
         _page_size = page_size;
     }
     void free_page(void* page, const std::shared_ptr<std::atomic_bool>& tracker = nullptr)
