@@ -3,11 +3,11 @@
 #include "buffer_manager.hpp"
 #include "buffer_reader.hpp"
 #include "detail/record.hpp"
+#include "log.hpp"
 #include "output_manager.hpp"
 #include "params.hpp"
 #include "request.hpp"
 #include "role.hpp"
-#include "log.hpp"
 
 #include <array>
 #include <istream>
@@ -29,6 +29,14 @@ public:
                     const std::array<std::function<std::unique_ptr<role>()>, 3>& role_factories)
         : _allocator(allocator), _role_factories(role_factories)
     {}
+    ~request_manager()
+    {
+        for (auto& request : _requests) {
+            if (request.second->handler_thread.joinable()) {
+                request.second->handler_thread.join();
+            }
+        }
+    }
     bool handle_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
     {
         std::shared_ptr<request> request;
@@ -180,12 +188,13 @@ private:
         byte_ostream output_stream(&sout);
         byte_ostream error_stream(&serr);
         LOG(info("hello"));
+        role->_params        = &request->params;
         role->_output_stream = &output_stream;
         role->_error_stream  = &error_stream;
         role->_cancelled     = &request->cancelled;
 
         // execute the role
-        detail::quadruple_type status = -1;
+        detail::quadruple_type status = static_cast<detail::quadruple_type>(-1);
 
         try {
             status = role->run();
