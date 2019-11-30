@@ -5,9 +5,9 @@
 #include "exception/invalid_role_exception.hpp"
 #include "params.hpp"
 
+#include <atomic>
 #include <memory>
 #include <type_traits>
-#include <atomic>
 
 namespace fast_cgi {
 
@@ -30,6 +30,10 @@ public:
     bool is_cancelled() const volatile noexcept
     {
         return _cancelled->load(std::memory_order_acquire);
+    }
+    const std::string& params(const std::string& key) const
+    {
+        return (*_params)[key];
     }
     /**
       Returns the associated parameters given by the web server.
