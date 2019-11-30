@@ -28,6 +28,10 @@ public:
     {
         return _parameters.end();
     }
+    bool has(const std::string& key) const
+    {
+        return _parameters.find(key) != _parameters.end();
+    }
     const std::string& operator[](const std::string& key) const
     {
         return _parameters.at(key);
