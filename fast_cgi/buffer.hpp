@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <deque>
 #include <mutex>
-#include <spdlog/spdlog.h>
 #include <utility>
 
 namespace fast_cgi {
@@ -149,8 +148,6 @@ public:
         }
 
         // wait for input
-        spdlog::trace("waiting with {} pages", _pages.size());
-
         _waiter.wait(lock, [this, &ptr] {
             for (auto& page : _pages) {
                 if (page.written > page.consumed) {
