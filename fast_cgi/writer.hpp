@@ -13,11 +13,20 @@ class writer
 {
 public:
     template<typename T>
-    typename std::enable_if<(std::is_unsigned<T>::value && (sizeof(T) <= 2 || sizeof(T) == 4)), std::size_t>::type
-        write(T value)
+    using valid_type = std::integral_constant<bool, std::is_unsigned<T>::value && (sizeof(T) <= 2 || sizeof(T) == 4)>;
+    template<typename T>
+    using underlying_type = typename std::enable_if<std::is_enum<T>::value, std::underlying_type<T>>::type;
+
+    template<typename T>
+    typename std::enable_if<valid_type<typename underlying_type<T>::type>::value, std::size_t>::type write(T value)
+    {
+        return write(static_cast<typename std::underlying_type<T>::type>(value));
+    }
+    template<typename T>
+    typename std::enable_if<valid_type<T>::value, std::size_t>::type write(T value)
     {
         if (sizeof(T) == 1) {
-            _connection->write(&value, 1);
+            return _connection->write(&value, 1);
         } else if (sizeof(T) == 2) {
             std::uint8_t buf[] = { static_cast<std::uint8_t>(value >> 8), static_cast<std::uint8_t>(value & 0xff) };
 
@@ -53,10 +62,9 @@ public:
     template<typename T, typename... Other>
     std::size_t write_all(T&& value, Other&&... other)
     {
-        /*auto s = write(std::forward<T>(value));
+        auto s = write(std::forward<T>(value));
 
-        return s + write_all(std::forward<Other>(other)...);*/
-        return 0;
+        return s + write_all(std::forward<Other>(other)...);
     }
     std::size_t write_all() noexcept
     {
