@@ -1,81 +1,101 @@
 #pragma once
 
 #include "connection.hpp"
+#include "log.hpp"
 #include "writer.hpp"
 
+#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <thread>
 #include <utility>
-#include <atomic>
 
 namespace fast_cgi {
 
 class output_manager
 {
 public:
-	typedef std::function<void(writer&)> task_type;
+    typedef std::function<void(writer&)> task_type;
 
-	output_manager(const std::shared_ptr<connection>& connection) : _writer(connection)
-	{}
-	/**
-	  Adds a writing task to the queue. The task are executed on a different thread at an unspecified time.
+    output_manager(const std::shared_ptr<connection>& connection)
+        : _alive(true), _writer(connection), _thread(&output_manager::_run, this)
+    {
+        LOG(trace("output manager thread started"));
+    }
+    ~output_manager()
+    {
+        _mutex.lock();
+        _alive = false;
+        _mutex.unlock();
+        _cv.notify_one();
 
-	  @param task is the writing task
-	  @returns a future that will be completed when the writing task finished
-	 */
-	std::shared_ptr<std::atomic_bool> add(task_type&& task)
-	{
-		std::lock_guard<std::mutex> lock(_mutex);
-		std::shared_ptr<std::atomic_bool> ret(new std::atomic_bool(false));
+        // wait
+        _thread.join();
 
-		_queue.push_back({ std::move(task), ret });
-		_cv.notify_one();
+        LOG(trace("output manager thread terminated"));
+    }
+    /**
+      Adds a writing task to the queue. The task are executed on a different thread at an unspecified time.
 
-		return ret;
-	}
-	void run(volatile bool& alive)
-	{
-		while (alive) {
-			queue_type task;
+      @param task is the writing task
+      @returns a future that will be completed when the writing task finished
+     */
+    std::shared_ptr<std::atomic_bool> add(task_type&& task)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        std::shared_ptr<std::atomic_bool> ret(new std::atomic_bool(false));
 
-			// poll queue
-			{
-				std::unique_lock<std::mutex> lock(_mutex);
+        _queue.push_back({ std::move(task), ret });
+        _cv.notify_one();
 
-				if (_queue.empty()) {
-					_writer.flush();
-				}
-
-				_cv.wait(lock, [&] { return !_queue.empty() || !alive; });
-
-				if (!alive) {
-					break;
-				}
-
-				task = std::move(_queue.front());
-				_queue.pop_front();
-			}
-
-			// execute task
-			try {
-				task.first(_writer);
-			} catch (...) {
-			}
-
-			task.second->store(true, std::memory_order_release);
-		}
-	}
+        return ret;
+    }
 
 private:
-	typedef std::pair<task_type, std::shared_ptr<std::atomic_bool>> queue_type;
+    typedef std::pair<task_type, std::shared_ptr<std::atomic_bool>> queue_type;
 
-	std::deque<queue_type> _queue;
-	std::mutex _mutex;
-	std::condition_variable _cv;
-	writer _writer;
+    bool _alive;
+    std::deque<queue_type> _queue;
+    std::mutex _mutex;
+    std::condition_variable _cv;
+    writer _writer;
+    std::thread _thread;
+
+    void _run()
+    {
+        while (true) {
+            queue_type task;
+
+            // poll queue
+            {
+                std::unique_lock<std::mutex> lock(_mutex);
+
+                if (_queue.empty()) {
+                    _writer.flush();
+                }
+
+                _cv.wait(lock, [&] { return !_queue.empty() || !_alive; });
+
+                if (!_alive && _queue.empty()) {
+                    break;
+                }
+
+                task = std::move(_queue.front());
+                _queue.pop_front();
+            }
+
+            // execute task
+            try {
+                task.first(_writer);
+            } catch (...) {
+            }
+
+            task.second->store(true, std::memory_order_release);
+        }
+    }
 };
 
 } // namespace fast_cgi
