@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <type_traits>
+#include <atomic>
 
 namespace fast_cgi {
 
@@ -26,9 +27,9 @@ public:
       Executes this role
      */
     virtual status_code_type run() = 0;
-    volatile bool is_cancelled() const noexcept
+    bool is_cancelled() const volatile noexcept
     {
-        return *_cancelled;
+        return _cancelled->load(std::memory_order_acquire);
     }
     /**
       Returns the associated parameters given by the web server.
@@ -51,7 +52,7 @@ public:
 private:
     friend class request_manager;
 
-    volatile bool* _cancelled;
+    std::atomic_bool* _cancelled;
     class params* _params;
     byte_ostream* _output_stream;
     byte_ostream* _error_stream;

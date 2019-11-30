@@ -66,26 +66,22 @@ private:
 
     void _connection_thread(std::shared_ptr<connection> connection)
     {
-        volatile auto alive = true;
         connection_reader reader(connection);
         auto output_manager = std::make_shared<class output_manager>(connection);
-        std::thread output_thread(&fast_cgi::output_manager::run, output_manager.get(), std::ref(alive));
 
         try {
-            _input_handler(alive, reader, output_manager);
+            _input_handler(reader, output_manager);
         } catch (const exception::io_exception& e) {
             LOG(info("buffer closed ({})", e.what()));
         }
 
-        output_thread.join();
-
         LOG(info("connection thread terminating"));
     }
-    void _input_handler(volatile bool& alive, reader& reader, const std::shared_ptr<output_manager>& output_manager)
+    void _input_handler(reader& reader, const std::shared_ptr<output_manager>& output_manager)
     {
         request_manager request_manager(_allocator, _role_factories);
 
-        while (alive) {
+        while (!request_manager.should_terminate_connection()) {
             auto record = detail::record::read(reader);
 
             LOG(info("received record: version={}, type={}, id={}, length={}, padding={}", record.version, record.type,
@@ -94,8 +90,6 @@ private:
             // version mismatch
             if (record.version != _version) {
                 LOG(critical("version mismatch (supported: {}|given: {})", _version, record.version));
-
-                alive = false;
 
                 return;
             }

@@ -10,10 +10,10 @@
 #include "role.hpp"
 
 #include <array>
+#include <atomic>
 #include <istream>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <ostream>
 #include <streambuf>
 #include <type_traits>
@@ -27,7 +27,7 @@ public:
 
     request_manager(const std::shared_ptr<allocator>& allocator,
                     const std::array<std::function<std::unique_ptr<role>()>, 3>& role_factories)
-        : _allocator(allocator), _role_factories(role_factories)
+        : _terminate_connection(false), _allocator(allocator), _role_factories(role_factories)
     {}
     ~request_manager()
     {
@@ -39,22 +39,50 @@ public:
             }
         }
     }
+    bool should_terminate_connection() const
+    {
+        if (!_terminate_connection.load(std::memory_order_acquire)) {
+            return false;
+        }
+
+        for (auto& request : _requests) {
+            if (!request.second->finished.load(std::memory_order_acquire)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
     bool handle_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
     {
         std::shared_ptr<request> request;
 
-        // ignore if request id is unknown
-        if (record.type != detail::TYPE::FCGI_BEGIN_REQUEST) {
-            std::lock_guard<std::mutex> lock(_mutex);
+        {
             auto r = _requests.find(record.request_id);
 
-            if (r == _requests.end()) {
-                reader.skip(record.content_length);
-
-                return true;
+            // request not found
+            if (r != _requests.end()) {
+                // check if request is finished
+                if (r->second->finished.load(std::memory_order_acquire)) {
+                    request->handler_thread.join();
+                    _requests.erase(r);
+                } else {
+                    request = r->second;
+                }
             }
 
-            request = r->second;
+            // ignore record
+            if ((request && record.type == detail::TYPE::FCGI_BEGIN_REQUEST) ||
+                (!request && record.type != detail::TYPE::FCGI_BEGIN_REQUEST)) {
+                LOG(warn("ignoring record because of invalid type and request state (id: {})", record.request_id));
+
+                return false;
+            }
+        }
+
+        // do not accept any more new request when connection is queued to be closed
+        if (!request && _terminate_connection.load(std::memory_order_acquire)) {
+            return false;
         }
 
         // request is set if type is not FCGI_BEGIN_REQUEST
@@ -67,7 +95,7 @@ public:
         case detail::TYPE::FCGI_ABORT_REQUEST: {
             reader.skip(record.content_length);
 
-            request->cancelled = true;
+            request->cancelled.store(true, std::memory_order_release);
 
             break;
         }
@@ -95,7 +123,7 @@ public:
 private:
     typedef std::map<id_type, std::shared_ptr<request>> requests_type;
 
-    std::mutex _mutex;
+    std::atomic_bool _terminate_connection;
     requests_type _requests;
     std::shared_ptr<allocator> _allocator;
     std::array<std::function<std::unique_ptr<role>()>, 3> _role_factories;
@@ -218,6 +246,15 @@ private:
         detail::record::write(version, request->id, *request->output_manager,
                               detail::end_request{ static_cast<detail::quadruple_type>(status),
                                                    detail::PROTOCOL_STATUS::FCGI_REQUEST_COMPLETE });
+
+        LOG(info("request {} finished; removing", request->id));
+
+        // trigger end
+        if (request->close_connection) {
+            _terminate_connection.store(true, std::memory_order_release);
+        }
+
+        request->finished.store(true, std::memory_order_release);
     }
     void _begin_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
     {
@@ -236,10 +273,10 @@ private:
 
                 LOG(info("created role; launching request thread"));
                 request->params_buffer.reset(new buffer(_allocator, 99999));
+
                 // launch thread
                 request->handler_thread =
                     std::thread(&request_manager::_request_hanlder, this, std::move(role), request);
-                LOG(info("created role; launching request thread"));
 
                 break;
             } // else fall through, because role is unimplemented
@@ -256,12 +293,7 @@ private:
         }
 
         // add request
-        {
-            std::lock_guard<std::mutex> lock(_mutex);
-
-            // add request
-            _requests.insert({ record.request_id, std::move(request) });
-        }
+        _requests.insert({ record.request_id, std::move(request) });
     }
 };
 
