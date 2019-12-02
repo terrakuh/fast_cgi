@@ -196,31 +196,30 @@ private:
         }
 
         // create output streams
-        buffer_manager buffer_manager(1024, _allocator);
-        output_streambuf sout(
-            [&request, version, &buffer_manager](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
-                if (buffer) {
-                    auto flag =
-                        detail::record::write(version, request->id, *request->output_manager,
-                                              detail::stdout_stream{ buffer, static_cast<detail::double_type>(size) });
+        output_streambuf sout([&request, version](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
+            if (buffer) {
+                auto flag =
+                    detail::record::write(version, request->id, *request->output_manager,
+                                          detail::stdout_stream{ buffer, static_cast<detail::double_type>(size) });
 
-                    buffer_manager.free_page(buffer, flag);
-                }
+                request->output_manager->buffer_manager().free_page(buffer, flag);
+            }
 
-                return { buffer_manager.new_page(), buffer_manager.page_size() };
-            });
-        output_streambuf serr(
-            [&request, version, &buffer_manager](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
-                if (buffer) {
-                    auto flag =
-                        detail::record::write(version, request->id, *request->output_manager,
-                                              detail::stderr_stream{ buffer, static_cast<detail::double_type>(size) });
+            return { request->output_manager->buffer_manager().new_page(),
+                     request->output_manager->buffer_manager().page_size() };
+        });
+        output_streambuf serr([&request, version](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
+            if (buffer) {
+                auto flag =
+                    detail::record::write(version, request->id, *request->output_manager,
+                                          detail::stderr_stream{ buffer, static_cast<detail::double_type>(size) });
 
-                    buffer_manager.free_page(buffer, flag);
-                }
+                request->output_manager->buffer_manager().free_page(buffer, flag);
+            }
 
-                return { buffer_manager.new_page(), buffer_manager.page_size() };
-            });
+            return { request->output_manager->buffer_manager().new_page(),
+                     request->output_manager->buffer_manager().page_size() };
+        });
         byte_ostream output_stream(&sout);
         byte_ostream error_stream(&serr);
 

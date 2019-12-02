@@ -18,6 +18,8 @@ public:
     {
         _page_size = page_size;
     }
+    buffer_manager(const buffer_manager& copy) = delete;
+    buffer_manager(buffer_manager&& copy) = delete;
     ~buffer_manager()
     {
         if (!_pages.empty()) {

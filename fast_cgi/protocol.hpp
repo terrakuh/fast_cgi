@@ -67,7 +67,7 @@ private:
     void _connection_thread(std::shared_ptr<connection> connection)
     {
         connection_reader reader(connection);
-        auto output_manager = std::make_shared<class output_manager>(connection);
+        auto output_manager = std::make_shared<class output_manager>(connection, _allocator);
 
         try {
             _input_handler(reader, output_manager);
