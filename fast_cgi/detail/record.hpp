@@ -44,10 +44,10 @@ enum FLAGS : single_type
 
 enum PROTOCOL_STATUS : single_type
 {
-    FCGI_REQUEST_COMPLETE,
-    FCGI_CANT_MPX_CONN,
-    FCGI_OVERLOADED,
-    FCGI_UNKNOWN_ROLE
+    FCGI_REQUEST_COMPLETE = 0,
+    FCGI_CANT_MPX_CONN    = 1,
+    FCGI_OVERLOADED       = 2,
+    FCGI_UNKNOWN_ROLE     = 3
 };
 
 struct name_value_pair
@@ -124,8 +124,8 @@ struct unknown_type
 
     void write(writer& writer) const
     {
-        writer.write_all(record_type, single_type(), single_type(), single_type(), single_type(), single_type(),
-                         single_type(), single_type());
+        writer.write_all(record_type, single_type(0), single_type(0), single_type(0), single_type(0), single_type(0),
+                         single_type(0), single_type(0));
     }
     constexpr static double_type size() noexcept
     {
@@ -145,7 +145,7 @@ struct end_request
 
     void write(writer& writer) const
     {
-        writer.write_all(app_status, protocol_status, single_type(), single_type(), single_type());
+        writer.write_all(app_status, protocol_status, single_type(0), single_type(0), single_type(0));
     }
     constexpr static double_type size() noexcept
     {
@@ -173,7 +173,7 @@ struct begin_request
     }
     void write(writer& writer) const
     {
-        writer.write_all(role, flags, single_type(), single_type(), single_type(), single_type(), single_type());
+        writer.write_all(role, flags, single_type(0), single_type(0), single_type(0), single_type(0), single_type(0));
     }
     constexpr static double_type size() noexcept
     {
@@ -258,7 +258,7 @@ struct record
             }
 
             // write header
-            writer.write_all(version, data.type(), request_id, size, padding, single_type());
+            writer.write_all(version, data.type(), request_id, size, padding, single_type(0));
 
             // write data
             data.write(writer);
