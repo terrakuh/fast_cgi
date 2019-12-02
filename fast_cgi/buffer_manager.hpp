@@ -18,13 +18,32 @@ public:
     {
         _page_size = page_size;
     }
+    ~buffer_manager()
+    {
+        if (!_pages.empty()) {
+            LOG(CRITICAL, "{} pages still in use", _pages.size());
+        }
+
+        for (auto& page : _free_pages) {
+            if (!page.second || page.second->load(std::memory_order_acquire)) {
+                _allocator->deallocate(page.first, _page_size);
+            } else {
+                LOG(CRITICAL, "marked page not freed");
+            }
+        }
+    }
     void free_page(void* page, const std::shared_ptr<std::atomic_bool>& tracker = nullptr)
     {
         auto result = _pages.find(page);
 
         if (result != _pages.end()) {
+            auto ptr = *result;
+
             _pages.erase(result);
-            _free_pages.push_back({ *result, tracker });
+
+            _free_pages.push_back({ ptr, tracker });
+        } else {
+            LOG(CRITICAL, "requesting freeing of unkown page: {}", page);
         }
     }
     void* new_page()
