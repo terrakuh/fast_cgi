@@ -43,7 +43,7 @@ public:
         std::shared_ptr<connection> connection;
 
         while ((connection = _connector->accept())) {
-            LOG(info("accepted new connection; launching new thread"));
+            LOG(INFO, "accepted new connection; launching new thread");
 
             _connections.push_back(std::thread(&protocol::_connection_thread, this, std::move(connection)));
         }
@@ -72,10 +72,10 @@ private:
         try {
             _input_handler(reader, output_manager);
         } catch (const exception::io_exception& e) {
-            LOG(info("buffer closed ({})", e.what()));
+            LOG(INFO, "buffer closed ({})", e.what());
         }
 
-        LOG(info("connection thread terminating"));
+        LOG(INFO, "connection thread terminating");
     }
     void _input_handler(reader& reader, const std::shared_ptr<output_manager>& output_manager)
     {
@@ -84,12 +84,12 @@ private:
         while (!request_manager.should_terminate_connection()) {
             auto record = detail::record::read(reader);
 
-            LOG(info("received record: version={}, type={}, id={}, length={}, padding={}", record.version, record.type,
-                     record.request_id, record.content_length, record.padding_length));
+            LOG(INFO, "received record: version={}, type={}, id={}, length={}, padding={}", record.version, record.type,
+                     record.request_id, record.content_length, record.padding_length);
 
             // version mismatch
             if (record.version != _version) {
-                LOG(critical("version mismatch (supported: {}|given: {})", _version, record.version));
+                LOG(CRITICAL, "version mismatch (supported: {}|given: {})", _version, record.version);
 
                 return;
             }
@@ -107,7 +107,7 @@ private:
                     break;
                 }
 
-                LOG(warn("skipping record because of unkown type {}", record.type));
+                LOG(WARN, "skipping record because of unkown type {}", record.type);
 
                 // ignore body
                 reader.skip(record.content_length);

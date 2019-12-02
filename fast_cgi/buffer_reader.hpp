@@ -23,9 +23,9 @@ public:
         // need more
         while (size > 0) {
             if (_begin >= _end) {
-                LOG(trace("waiting for input"));
+                LOG(TRACE, "waiting for input");
                 auto buf = _buffer->wait_for_input();
-                LOG(trace("got input {}", buf.second));
+                LOG(TRACE, "got input {}", buf.second);
 
                 // buffer is empty
                 if (!buf.second) {

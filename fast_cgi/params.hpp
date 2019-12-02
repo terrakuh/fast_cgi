@@ -56,7 +56,7 @@ private:
                 value.resize(pair.value_length);
                 reader.read(&value[0], pair.value_length);
 
-                LOG(debug("read parameter: {}={}", name, value));
+                LOG(DEBUG, "read parameter: {}={}", name, value);
 
                 _parameters[std::move(name)] = std::move(value);
             }

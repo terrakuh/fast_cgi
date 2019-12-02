@@ -1,6 +1,7 @@
 #pragma once
 
 #include "allocator.hpp"
+#include "log.hpp"
 
 #include <algorithm>
 #include <condition_variable>
@@ -142,6 +143,8 @@ public:
         std::unique_lock<std::mutex> lock(_mutex);
         page* ptr = nullptr;
 
+        LOG(TRACE, "waiting for intput, consumed={} written={} max={}", _consume_total, _write_total, _max_size);
+
         // reached end
         if (_consume_total >= _max_size) {
             return { nullptr, 0 };
@@ -149,7 +152,11 @@ public:
 
         // wait for input
         _waiter.wait(lock, [this, &ptr] {
+            LOG(TRACE, "page count={}", _pages.size());
+
             for (auto& page : _pages) {
+                LOG(TRACE, "page: consumed={} written={} max={}", page.consumed, page.written, page.size);
+
                 if (page.written > page.consumed) {
                     ptr = &page;
 

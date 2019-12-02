@@ -23,7 +23,7 @@ public:
     output_manager(const std::shared_ptr<connection>& connection)
         : _alive(true), _writer(connection), _thread(&output_manager::_run, this)
     {
-        LOG(trace("output manager thread started"));
+        LOG(TRACE, "output manager thread started");
     }
     ~output_manager()
     {
@@ -35,7 +35,7 @@ public:
         // wait
         _thread.join();
 
-        LOG(trace("output manager thread terminated"));
+        LOG(TRACE, "output manager thread terminated");
     }
     /**
       Adds a writing task to the queue. The task are executed on a different thread at an unspecified time.
@@ -45,6 +45,8 @@ public:
      */
     std::shared_ptr<std::atomic_bool> add(task_type&& task)
     {
+        LOG(DEBUG, "adding output task");
+
         std::lock_guard<std::mutex> lock(_mutex);
         std::shared_ptr<std::atomic_bool> ret(new std::atomic_bool(false));
 
@@ -87,10 +89,15 @@ private:
                 _queue.pop_front();
             }
 
+            LOG(TRACE, "executing writer task");
+
             // execute task
             try {
                 task.first(_writer);
+            } catch (const std::exception& e) {
+                LOG(CRITICAL, "failed to execute writer task ({}) {}", e.what());
             } catch (...) {
+                LOG(CRITICAL, "failed to execute writer task");
             }
 
             task.second->store(true, std::memory_order_release);

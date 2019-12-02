@@ -11,6 +11,7 @@
 
 #include <array>
 #include <atomic>
+#include <iostream>
 #include <istream>
 #include <map>
 #include <memory>
@@ -33,7 +34,7 @@ public:
     {
         for (auto& request : _requests) {
             if (request.second->handler_thread.joinable()) {
-                LOG(debug("joining request({}) thread", request.first));
+                LOG(DEBUG, "joining request({}) thread", request.first);
 
                 request.second->handler_thread.join();
             }
@@ -74,7 +75,7 @@ public:
             // ignore record
             if ((request && record.type == detail::TYPE::FCGI_BEGIN_REQUEST) ||
                 (!request && record.type != detail::TYPE::FCGI_BEGIN_REQUEST)) {
-                LOG(warn("ignoring record because of invalid type and request state (id: {})", record.request_id));
+                LOG(WARN, "ignoring record because of invalid type and request state (id: {})", record.request_id);
 
                 return false;
             }
@@ -111,7 +112,7 @@ public:
         }
         case detail::TYPE::FCGI_STDIN: {
             //_forward_to_buffer(record.content_length, *request->input_buffer, reader);
-
+            reader.skip(record.content_length);
             break;
         }
         default: return false;
@@ -148,7 +149,7 @@ private:
 
                 // buffer is full -> ignore
                 if (buf.second == 0) {
-                    LOG(warn("buffer is full...skipping {} bytes", length - sent));
+                    LOG(WARN, "buffer is full...skipping {} bytes", length - sent);
 
                     reader.skip(length - sent);
 
@@ -163,14 +164,13 @@ private:
     }
     void _request_hanlder(std::unique_ptr<role> role, std::shared_ptr<request> request)
     {
-        LOG(info("{}, {}", (void*) role.get(), (void*) request.get()));
         auto version = detail::VERSION::FCGI_VERSION_1;
 
         // read all parameters
         {
             buffer_reader reader(request->params_buffer);
 
-            LOG(debug("reading all parameters"));
+            LOG(DEBUG, "reading all parameters");
 
             request->params._read_parameters(reader);
 
@@ -197,24 +197,30 @@ private:
 
         // create output streams
         buffer_manager buffer_manager(1024, _allocator);
-        output_streambuf sout([&request, version, &buffer_manager](void* buffer,
-                                                                   std::size_t size) -> std::pair<void*, std::size_t> {
-            auto flag = detail::record::write(version, request->id, *request->output_manager,
+        output_streambuf sout(
+            [&request, version, &buffer_manager](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
+                if (buffer) {
+                    auto flag =
+                        detail::record::write(version, request->id, *request->output_manager,
                                               detail::stdout_stream{ buffer, static_cast<detail::double_type>(size) });
 
-            buffer_manager.free_page(buffer, flag);
+                    buffer_manager.free_page(buffer, flag);
+                }
 
-            return { buffer_manager.new_page(), buffer_manager.page_size() };
-        });
-        output_streambuf serr([&request, version, &buffer_manager](void* buffer,
-                                                                   std::size_t size) -> std::pair<void*, std::size_t> {
-            auto flag = detail::record::write(version, request->id, *request->output_manager,
+                return { buffer_manager.new_page(), buffer_manager.page_size() };
+            });
+        output_streambuf serr(
+            [&request, version, &buffer_manager](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
+                if (buffer) {
+                    auto flag =
+                        detail::record::write(version, request->id, *request->output_manager,
                                               detail::stderr_stream{ buffer, static_cast<detail::double_type>(size) });
 
-            buffer_manager.free_page(buffer, flag);
+                    buffer_manager.free_page(buffer, flag);
+                }
 
-            return { buffer_manager.new_page(), buffer_manager.page_size() };
-        });
+                return { buffer_manager.new_page(), buffer_manager.page_size() };
+            });
         byte_ostream output_stream(&sout);
         byte_ostream error_stream(&serr);
 
@@ -228,18 +234,18 @@ private:
 
         try {
             status = role->run();
-
-            LOG(info("role finished with status code={}", status));
         } catch (const std::exception& e) {
-            LOG(error("role executor threw an exception ({})", e.what()));
+            LOG(ERROR, "role executor threw an exception ({})", e.what());
         } catch (...) {
-            LOG(error("role executor threw an exception"));
+            LOG(ERROR, "role executor threw an exception");
         }
 
+        LOG(INFO, "role finished with status code={}", static_cast<detail::quadruple_type>(status));
+
         // flush and finish all output streams
-        sout.pubsync();
+        output_stream.flush();
         detail::record::write(version, request->id, *request->output_manager, detail::stdout_stream{ nullptr, 0 });
-        serr.pubsync();
+        error_stream.flush();
         detail::record::write(version, request->id, *request->output_manager, detail::stderr_stream{ nullptr, 0 });
 
         // end request
@@ -247,7 +253,7 @@ private:
                               detail::end_request{ static_cast<detail::quadruple_type>(status),
                                                    detail::PROTOCOL_STATUS::FCGI_REQUEST_COMPLETE });
 
-        LOG(info("request {} finished; removing", request->id));
+        LOG(INFO, "request {} finished; removing", request->id);
 
         // trigger end
         if (request->close_connection) {
@@ -271,7 +277,7 @@ private:
             if (factory) {
                 auto role = factory();
 
-                LOG(info("created role; launching request thread"));
+                LOG(INFO, "created role; launching request thread");
                 request->params_buffer.reset(new buffer(_allocator, 99999));
 
                 // launch thread
@@ -282,7 +288,7 @@ private:
             } // else fall through, because role is unimplemented
         }
         default: {
-            LOG(error("begin request record rejected because of unknown/unimplemented role {}", body.role));
+            LOG(ERROR, "begin request record rejected because of unknown/unimplemented role {}", body.role);
 
             // reject because role is unknown
             detail::record::write(detail::FCGI_VERSION_1, record.request_id, *output_manager,
