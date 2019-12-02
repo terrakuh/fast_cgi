@@ -26,18 +26,18 @@ public:
     typename std::enable_if<valid_type<T>::value, std::size_t>::type write(T value)
     {
         if (sizeof(T) == 1) {
-            return _connection->write(&value, 1);
+            return write(&value, 1);
         } else if (sizeof(T) == 2) {
             std::uint8_t buf[] = { static_cast<std::uint8_t>(value >> 8), static_cast<std::uint8_t>(value & 0xff) };
 
-            return _connection->write(buf, 2);
+            return write(buf, 2);
         }
 
-        std::uint8_t buf[] = { static_cast<std::uint8_t>(value >> 24 | 0x80),
+        std::uint8_t buf[] = { static_cast<std::uint8_t>(value >> 24),
                                static_cast<std::uint8_t>(value >> 16 & 0xff),
                                static_cast<std::uint8_t>(value >> 8 & 0xff), static_cast<std::uint8_t>(value & 0xff) };
 
-        return _connection->write(buf, 4);
+        return write(buf, 4);
     }
     std::size_t write(const void* src, std::size_t size)
     {
@@ -49,7 +49,7 @@ public:
             return write(static_cast<detail::single_type>(value));
         }
 
-        return write(value);
+        return write(value | 0x80000000);
     }
     void flush()
     {
