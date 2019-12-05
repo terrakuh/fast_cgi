@@ -2,14 +2,13 @@
 
 #include "allocator.hpp"
 #include "connection.hpp"
-#include "connection_reader.hpp"
 #include "connector.hpp"
 #include "detail/record.hpp"
+#include "io/input_manager.hpp"
+#include "io/output_manager.hpp"
 #include "log.hpp"
-#include "output_manager.hpp"
 #include "request_manager.hpp"
 #include "role.hpp"
-#include "writer.hpp"
 
 #include <array>
 #include <cstddef>
@@ -66,8 +65,8 @@ private:
 
     void _connection_thread(std::shared_ptr<connection> connection)
     {
-        connection_reader reader(connection);
-        auto output_manager = std::make_shared<class output_manager>(connection, _allocator);
+        auto output_manager = std::make_shared<io::output_manager>(connection, _allocator);
+        auto reader         = io::input_manager::launch_input_manager(connection, _allocator);
 
         try {
             _input_handler(reader, output_manager);
@@ -77,15 +76,16 @@ private:
 
         LOG(INFO, "connection thread terminating");
     }
-    void _input_handler(reader& reader, const std::shared_ptr<output_manager>& output_manager)
+    void _input_handler(const std::shared_ptr<io::reader>& reader,
+                        const std::shared_ptr<io::output_manager>& output_manager)
     {
-        request_manager request_manager(_allocator, _role_factories);
+        request_manager request_manager(_allocator, reader, _role_factories);
 
         while (!request_manager.should_terminate_connection()) {
-            auto record = detail::record::read(reader);
+            auto record = detail::record::read(*reader);
 
             LOG(INFO, "received record: version={}, type={}, id={}, length={}, padding={}", record.version, record.type,
-                     record.request_id, record.content_length, record.padding_length);
+                record.request_id, record.content_length, record.padding_length);
 
             // version mismatch
             if (record.version != _version) {
@@ -97,20 +97,20 @@ private:
             // process record
             switch (record.type) {
             case detail::TYPE::FCGI_GET_VALUES: {
-                _get_values(reader, *output_manager, record);
+                _get_values(*reader, *output_manager, record);
 
                 break;
             }
             default: {
                 // a request -> handled
-                if (record.request_id && request_manager.handle_request(reader, output_manager, record)) {
+                if (record.request_id && request_manager.handle_request(output_manager, record)) {
                     break;
                 }
 
                 LOG(WARN, "skipping record because of unkown type {}", record.type);
 
                 // ignore body
-                reader.skip(record.content_length);
+                reader->skip(record.content_length);
 
                 // tell the server that the record was ignored
                 detail::record::write(_version, record.request_id, *output_manager,
@@ -121,10 +121,10 @@ private:
             }
 
             // skip padding
-            reader.skip(record.padding_length);
+            reader->skip(record.padding_length);
         }
     }
-    void _get_values(reader& reader, output_manager& output_manager, detail::record record)
+    void _get_values(io::reader& reader, io::output_manager& output_manager, detail::record record)
     {
         constexpr auto max_conns  = "FCGI_MAX_CONNS";
         constexpr auto max_reqs   = "FCGI_MAX_REQS";

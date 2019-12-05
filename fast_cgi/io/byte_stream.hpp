@@ -1,7 +1,7 @@
 #pragma once
 
-#include "allocator.hpp"
-#include "buffer.hpp"
+#include "../allocator.hpp"
+#include "../buffer.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -13,6 +13,7 @@
 #include <utility>
 
 namespace fast_cgi {
+namespace io {
 
 typedef char byte_type;
 
@@ -115,4 +116,5 @@ private:
     writer_type _writer;
 };
 
+} // namespace io
 } // namespace fast_cgi

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "buffer_manager.hpp"
-#include "buffer_reader.hpp"
 #include "detail/record.hpp"
+#include "io/output_manager.hpp"
+#include "io/reader.hpp"
 #include "log.hpp"
-#include "output_manager.hpp"
 #include "params.hpp"
 #include "request.hpp"
 #include "role.hpp"
@@ -26,9 +26,9 @@ class request_manager
 public:
     typedef detail::double_type id_type;
 
-    request_manager(const std::shared_ptr<allocator>& allocator,
+    request_manager(const std::shared_ptr<allocator>& allocator, const std::shared_ptr<io::reader>& reader,
                     const std::array<std::function<std::unique_ptr<role>()>, 3>& role_factories)
-        : _terminate_connection(false), _allocator(allocator), _role_factories(role_factories)
+        : _terminate_connection(false), _allocator(allocator), _reader(reader), _role_factories(role_factories)
     {}
     ~request_manager()
     {
@@ -54,7 +54,7 @@ public:
 
         return true;
     }
-    bool handle_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
+    bool handle_request(const std::shared_ptr<io::output_manager>& output_manager, detail::record record)
     {
         std::shared_ptr<request> request;
 
@@ -89,30 +89,30 @@ public:
         // request is set if type is not FCGI_BEGIN_REQUEST
         switch (record.type) {
         case detail::TYPE::FCGI_BEGIN_REQUEST: {
-            _begin_request(reader, output_manager, record);
+            _begin_request(output_manager, record);
 
             break;
         }
         case detail::TYPE::FCGI_ABORT_REQUEST: {
-            reader.skip(record.content_length);
+            _reader->skip(record.content_length);
 
             request->cancelled.store(true, std::memory_order_release);
 
             break;
         }
         case detail::TYPE::FCGI_PARAMS: {
-            _forward_to_buffer(record.content_length, *request->params_buffer, reader);
+            _forward_to_buffer(record.content_length, *request->params_buffer);
 
             break;
         }
         case detail::TYPE::FCGI_DATA: {
-            _forward_to_buffer(record.content_length, *request->data_buffer, reader);
+            _forward_to_buffer(record.content_length, *request->data_buffer);
 
             break;
         }
         case detail::TYPE::FCGI_STDIN: {
-            //_forward_to_buffer(record.content_length, *request->input_buffer, reader);
-            reader.skip(record.content_length);
+            //_forward_to_buffer(record.content_length, *request->input_buffer);
+            _reader->skip(record.content_length);
             break;
         }
         default: return false;
@@ -127,6 +127,7 @@ private:
     std::atomic_bool _terminate_connection;
     requests_type _requests;
     std::shared_ptr<allocator> _allocator;
+    std::shared_ptr<io::reader> _reader;
     std::array<std::function<std::unique_ptr<role>()>, 3> _role_factories;
 
     /**
@@ -134,9 +135,8 @@ private:
 
       @param length the length of the forward content
       @param[in] buffer the buffer
-      @param[in] reader the reader
      */
-    void _forward_to_buffer(detail::double_type length, buffer& buffer, reader& reader)
+    void _forward_to_buffer(detail::double_type length, buffer& buffer)
     {
         // end of stream
         if (length == 0) {
@@ -151,12 +151,12 @@ private:
                 if (buf.second == 0) {
                     LOG(WARN, "buffer is full...skipping {} bytes", length - sent);
 
-                    reader.skip(length - sent);
+                    _reader->skip(length - sent);
 
                     break;
                 }
 
-                reader.read(buf.first, buf.second);
+                _reader->read(buf.first, buf.second);
 
                 sent += buf.second;
             }
@@ -168,7 +168,7 @@ private:
 
         // read all parameters
         {
-            buffer_reader reader(request->params_buffer);
+            io::reader reader(request->params_buffer);
 
             LOG(DEBUG, "reading all parameters");
 
@@ -178,10 +178,10 @@ private:
         }
 
         // initialize input streams
-        input_streambuf sin(request->input_buffer);
-        input_streambuf sdata(request->data_buffer);
-        byte_istream input_stream(&sin);
-        byte_istream data_stream(&sdata);
+        io::input_streambuf sin(request->input_buffer);
+        io::input_streambuf sdata(request->data_buffer);
+        io::byte_istream input_stream(&sin);
+        io::byte_istream data_stream(&sdata);
 
         if (request->role_type == detail::ROLE::FCGI_FILTER || request->role_type == detail::ROLE::FCGI_RESPONDER) {
             static_cast<responder*>(role.get())->_input_stream = &input_stream;
@@ -196,7 +196,7 @@ private:
         }
 
         // create output streams
-        output_streambuf sout([&request, version](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
+        io::output_streambuf sout([&request, version](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
             if (buffer) {
                 auto flag =
                     detail::record::write(version, request->id, *request->output_manager,
@@ -208,7 +208,7 @@ private:
             return { request->output_manager->buffer_manager().new_page(),
                      request->output_manager->buffer_manager().page_size() };
         });
-        output_streambuf serr([&request, version](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
+        io::output_streambuf serr([&request, version](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
             if (buffer) {
                 auto flag =
                     detail::record::write(version, request->id, *request->output_manager,
@@ -220,8 +220,8 @@ private:
             return { request->output_manager->buffer_manager().new_page(),
                      request->output_manager->buffer_manager().page_size() };
         });
-        byte_ostream output_stream(&sout);
-        byte_ostream error_stream(&serr);
+        io::byte_ostream output_stream(&sout);
+        io::byte_ostream error_stream(&serr);
 
         role->_params        = &request->params;
         role->_output_stream = &output_stream;
@@ -254,16 +254,19 @@ private:
 
         LOG(INFO, "request {} finished; removing", request->id);
 
-        // trigger end
+        // trigger end and interrupt reading buffer
         if (request->close_connection) {
+            LOG(DEBUG, "terminating connection");
+
             _terminate_connection.store(true, std::memory_order_release);
+            _reader->interrupt();
         }
 
         request->finished.store(true, std::memory_order_release);
     }
-    void _begin_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
+    void _begin_request(const std::shared_ptr<io::output_manager>& output_manager, detail::record record)
     {
-        auto body    = detail::begin_request::read(reader);
+        auto body    = detail::begin_request::read(*_reader);
         auto request = std::make_shared<class request>(record.request_id, body.role, output_manager,
                                                        (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0);
 

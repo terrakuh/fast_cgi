@@ -1,8 +1,8 @@
 #pragma once
 
-#include "buffer_manager.hpp"
-#include "connection.hpp"
-#include "log.hpp"
+#include "../buffer_manager.hpp"
+#include "../connection.hpp"
+#include "../log.hpp"
 #include "writer.hpp"
 
 #include <atomic>
@@ -15,6 +15,7 @@
 #include <utility>
 
 namespace fast_cgi {
+namespace io {
 
 class output_manager
 {
@@ -111,4 +112,5 @@ private:
     }
 };
 
+} // namespace io
 } // namespace fast_cgi

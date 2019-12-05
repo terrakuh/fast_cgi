@@ -1,8 +1,8 @@
 #pragma once
 
 #include "detail/record.hpp"
+#include "io/reader.hpp"
 #include "log.hpp"
-#include "reader.hpp"
 
 #include <map>
 #include <string>
@@ -42,7 +42,7 @@ private:
 
     map_type _parameters;
 
-    void _read_parameters(reader& reader)
+    void _read_parameters(io::reader& reader)
     {
         try {
             while (true) {

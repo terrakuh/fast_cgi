@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../output_manager.hpp"
-#include "../reader.hpp"
+#include "../io/output_manager.hpp"
+#include "../io/reader.hpp"
 #include "config.hpp"
 
 #include <functional>
@@ -55,7 +55,7 @@ struct name_value_pair
     const quadruple_type name_length;
     const quadruple_type value_length;
 
-    static name_value_pair read(reader& reader)
+    static name_value_pair read(io::reader& reader)
     {
         auto name_length  = reader.read_variable();
         auto value_length = reader.read_variable();
@@ -88,7 +88,7 @@ struct get_values_result
 
         return result;
     }
-    void write(writer& writer) const
+    void write(io::writer& writer) const
     {
         while (true) {
             auto value = _generator();
@@ -122,7 +122,7 @@ struct unknown_type
     const TYPE record_type;
     // 7 bytes padding
 
-    void write(writer& writer) const
+    void write(io::writer& writer) const
     {
         writer.write_all(record_type, single_type(0), single_type(0), single_type(0), single_type(0), single_type(0),
                          single_type(0), single_type(0));
@@ -143,7 +143,7 @@ struct end_request
     const PROTOCOL_STATUS protocol_status;
     // 3 bytes reserved
 
-    void write(writer& writer) const
+    void write(io::writer& writer) const
     {
         writer.write_all(app_status, protocol_status, single_type(0), single_type(0), single_type(0));
     }
@@ -163,7 +163,7 @@ struct begin_request
     const single_type flags;
     // 5 bytes padding
 
-    static begin_request read(reader& reader)
+    static begin_request read(io::reader& reader)
     {
         auto role  = reader.read<ROLE>();
         auto flags = reader.read<single_type>();
@@ -171,7 +171,7 @@ struct begin_request
 
         return { role, flags };
     }
-    void write(writer& writer) const
+    void write(io::writer& writer) const
     {
         writer.write_all(role, flags, single_type(0), single_type(0), single_type(0), single_type(0), single_type(0));
     }
@@ -190,7 +190,7 @@ struct stdout_stream
     const void* const content;
     const double_type content_size;
 
-    void write(writer& writer) const
+    void write(io::writer& writer) const
     {
         writer.write(content, content_size);
     }
@@ -209,7 +209,7 @@ struct stderr_stream
     const void* const content;
     const double_type content_size;
 
-    void write(writer& writer) const
+    void write(io::writer& writer) const
     {
         writer.write(content, content_size);
     }
@@ -233,7 +233,7 @@ struct record
     const single_type padding_length;
     // 1 byte padding
 
-    static record read(reader& reader)
+    static record read(io::reader& reader)
     {
         auto version        = reader.read<VERSION>();
         auto type           = reader.read<TYPE>();
@@ -247,9 +247,9 @@ struct record
     }
     template<typename T>
     static std::shared_ptr<std::atomic_bool> write(VERSION version, double_type request_id,
-                                                   output_manager& output_manager, const T& data)
+                                                   io::output_manager& output_manager, const T& data)
     {
-        return output_manager.add([version, request_id, data](writer& writer) {
+        return output_manager.add([version, request_id, data](io::writer& writer) {
             double_type size    = data.size();
             single_type padding = size % default_padding_boundary;
 

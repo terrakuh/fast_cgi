@@ -1,13 +1,14 @@
 #pragma once
 
-#include "connection.hpp"
-#include "detail/config.hpp"
+#include "../connection.hpp"
+#include "../detail/config.hpp"
 
 #include <cstdint>
 #include <memory>
 #include <utility>
 
 namespace fast_cgi {
+namespace io {
 
 class writer
 {
@@ -33,8 +34,7 @@ public:
             return write(buf, 2);
         }
 
-        std::uint8_t buf[] = { static_cast<std::uint8_t>(value >> 24),
-                               static_cast<std::uint8_t>(value >> 16 & 0xff),
+        std::uint8_t buf[] = { static_cast<std::uint8_t>(value >> 24), static_cast<std::uint8_t>(value >> 16 & 0xff),
                                static_cast<std::uint8_t>(value >> 8 & 0xff), static_cast<std::uint8_t>(value & 0xff) };
 
         return write(buf, 4);
@@ -80,4 +80,5 @@ private:
     {}
 };
 
+} // namespace io
 } // namespace fast_cgi
