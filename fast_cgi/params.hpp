@@ -58,7 +58,7 @@ private:
 
                 LOG(DEBUG, "read parameter: {}={}", name, value);
 
-                _parameters[std::move(name)] = std::move(value);
+                _parameters[std::move(name)].swap(value);
             }
         } catch (const exception::io_exception& e) {
         }

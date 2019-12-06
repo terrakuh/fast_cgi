@@ -51,5 +51,5 @@ inline void log(const char* func, const char* level, const char* msg, Ts&&... ts
 
 #    define LOG(level, ...) SPDLOG_##level(__VA_ARGS__)
 #else
-#    define LOG(s)
+#    define LOG(...) ((void)0)
 #endif

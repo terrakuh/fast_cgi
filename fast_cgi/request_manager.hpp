@@ -267,7 +267,7 @@ private:
     void _begin_request(const std::shared_ptr<io::output_manager>& output_manager, detail::record record)
     {
         auto body    = detail::begin_request::read(*_reader);
-        auto request = std::make_shared<class request>(record.request_id, body.role, output_manager,
+        auto request = std::make_shared<struct request>(record.request_id, body.role, output_manager,
                                                        (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0);
 
         switch (body.role) {
