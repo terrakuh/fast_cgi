@@ -24,7 +24,10 @@ public:
     using underlying_type = typename std::enable_if<std::is_enum<T>::value, std::underlying_type<T>>::type;
 
     reader(const std::shared_ptr<buffer>& buffer) : _buffer(buffer)
-    {}
+    {
+        _begin = nullptr;
+        _end   = nullptr;
+    }
     void interrupt()
     {
         _buffer->interrupt_all_waiting();
