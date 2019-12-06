@@ -19,19 +19,15 @@ public:
         _page_size = page_size;
     }
     buffer_manager(const buffer_manager& copy) = delete;
-    buffer_manager(buffer_manager&& copy) = delete;
+    buffer_manager(buffer_manager&& copy)      = delete;
     ~buffer_manager()
     {
-        if (!_pages.empty()) {
-            LOG(CRITICAL, "{} pages still in use", _pages.size());
+        for (auto& page : _pages) {
+            _allocator->deallocate(page, _page_size);
         }
 
         for (auto& page : _free_pages) {
-            if (!page.second || page.second->load(std::memory_order_acquire)) {
-                _allocator->deallocate(page.first, _page_size);
-            } else {
-                LOG(CRITICAL, "marked page not freed");
-            }
+            _allocator->deallocate(page.first, _page_size);
         }
     }
     void free_page(void* page, const std::shared_ptr<std::atomic_bool>& tracker = nullptr)
