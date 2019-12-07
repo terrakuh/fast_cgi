@@ -184,11 +184,11 @@ private:
         io::byte_istream data_stream(&sdata);
 
         if (request->role_type == detail::ROLE::FCGI_FILTER || request->role_type == detail::ROLE::FCGI_RESPONDER) {
-            static_cast<responder*>(role.get())->_input_stream = &input_stream;
+            dynamic_cast<responder*>(role.get())->_input_stream = &input_stream;
 
             // initialize data stream
             if (request->role_type == detail::ROLE::FCGI_FILTER) {
-                static_cast<filter*>(role.get())->_data_stream = &data_stream;
+                dynamic_cast<filter*>(role.get())->_data_stream = &data_stream;
 
                 // wait until input stream finished reading
                 request->input_buffer->wait_for_all_input();

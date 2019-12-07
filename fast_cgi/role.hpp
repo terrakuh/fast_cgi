@@ -62,7 +62,7 @@ private:
     io::byte_ostream* _error_stream;
 };
 
-class responder : public role
+class responder : public virtual role
 {
 public:
     responder() noexcept
@@ -84,10 +84,10 @@ private:
     io::byte_istream* _input_stream;
 };
 
-class authorizer : public role
+class authorizer : public virtual role
 {};
 
-class filter : public responder
+class filter : public virtual responder
 {
 public:
     filter() noexcept
