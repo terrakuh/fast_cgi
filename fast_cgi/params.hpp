@@ -51,10 +51,10 @@ private:
                 std::string value;
 
                 name.resize(pair.name_length);
-                reader.read(&name[0], pair.name_length);
+                reader.read(&*name.begin(), pair.name_length);
 
                 value.resize(pair.value_length);
-                reader.read(&value[0], pair.value_length);
+                reader.read(&*value.begin(), pair.value_length);
 
                 LOG(DEBUG, "read parameter: {}={}", name, value);
 
