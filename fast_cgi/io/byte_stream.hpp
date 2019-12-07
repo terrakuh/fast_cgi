@@ -1,9 +1,11 @@
 #pragma once
 
-#include "allocator.hpp"
-#include "buffer.hpp"
+#include "../allocator.hpp"
+#include "../buffer.hpp"
 
+#include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <istream>
 #include <ostream>
@@ -11,6 +13,7 @@
 #include <utility>
 
 namespace fast_cgi {
+namespace io {
 
 typedef char byte_type;
 
@@ -60,10 +63,34 @@ public:
     {}
 
 protected:
+    virtual std::streamsize xsputn(const char_type* s, std::streamsize count) override
+    {
+        const auto initial_count = count;
+
+        while (count) {
+            if (epptr() == pptr()) {
+                sync();
+
+                if (epptr() == pptr()) {
+                    break;
+                }
+            }
+
+            auto size = std::min(count, static_cast<std::streamsize>(epptr() - pptr()));
+
+            std::memcpy(pptr(), s, size);
+            pbump(size);
+
+            s += size;
+            count -= size;
+        }
+
+        return initial_count - count;
+    }
     virtual int sync() override
     {
-        if (pptr() > pbase()) {
-            auto _buffer = _writer(pptr(), static_cast<std::size_t>(pptr() - pbase()));
+        if (!pptr() || pptr() > pbase()) {
+            auto _buffer = _writer(pbase(), static_cast<std::size_t>(pptr() - pbase()));
 
             setp(static_cast<byte_type*>(_buffer.first), static_cast<byte_type*>(_buffer.first) + _buffer.second);
         }
@@ -89,4 +116,5 @@ private:
     writer_type _writer;
 };
 
+} // namespace io
 } // namespace fast_cgi

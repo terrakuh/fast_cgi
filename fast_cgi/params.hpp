@@ -1,8 +1,8 @@
 #pragma once
 
 #include "detail/record.hpp"
+#include "io/reader.hpp"
 #include "log.hpp"
-#include "reader.hpp"
 
 #include <map>
 #include <string>
@@ -42,7 +42,7 @@ private:
 
     map_type _parameters;
 
-    void _read_parameters(reader& reader)
+    void _read_parameters(io::reader& reader)
     {
         try {
             while (true) {
@@ -51,14 +51,14 @@ private:
                 std::string value;
 
                 name.resize(pair.name_length);
-                reader.read(&name[0], pair.name_length);
+                reader.read(&*name.begin(), pair.name_length);
 
                 value.resize(pair.value_length);
-                reader.read(&value[0], pair.value_length);
+                reader.read(&*value.begin(), pair.value_length);
 
-                LOG(debug("read parameter: {}={}", name, value));
+                LOG(DEBUG, "read parameter: {}={}", name, value);
 
-                _parameters[std::move(name)] = std::move(value);
+                _parameters[std::move(name)].swap(value);
             }
         } catch (const exception::io_exception& e) {
         }

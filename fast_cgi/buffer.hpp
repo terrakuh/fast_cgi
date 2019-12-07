@@ -1,6 +1,8 @@
 #pragma once
 
 #include "allocator.hpp"
+#include "exception/interrupted_exception.hpp"
+#include "log.hpp"
 
 #include <algorithm>
 #include <condition_variable>
@@ -8,7 +10,6 @@
 #include <cstdint>
 #include <deque>
 #include <mutex>
-#include <spdlog/spdlog.h>
 #include <utility>
 
 namespace fast_cgi {
@@ -112,6 +113,7 @@ public:
      */
     buffer(const std::shared_ptr<allocator>& allocator, std::size_t max_size) : _allocator(allocator)
     {
+        _interrupted   = false;
         _write_total   = 0;
         _consume_total = 0;
         _max_size      = max_size;
@@ -124,24 +126,46 @@ public:
             _allocator->deallocate(page.begin, page.size);
         }
     }
+    void interrupt_all_waiting()
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        _interrupted = true;
+        _waiter.notify_all();
+    }
+    bool interrupted()
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        return _interrupted;
+    }
     /**
       Blocks until the buffer has reached max size.
+
+      @throws exception::interrupted_exception if reading was interrupted
      */
     void wait_for_all_input()
     {
         std::unique_lock<std::mutex> lock(_mutex);
 
-        _waiter.wait(lock, [this] { return _write_total >= _max_size; });
+        _waiter.wait(lock, [this] { return _write_total >= _max_size || _interrupted; });
+
+        if (_interrupted) {
+            throw exception::interrupted_exception("waiting was interrupted");
+        }
     }
     /**
       Waits until new input is available. Every input returned by previous calls to this function are invalidated.
 
       @returns the new input or `{nullptr, 0}` if no more input is available
+      @throws exception::interrupted_exception if reading was interrupted
      */
     std::pair<void*, std::size_t> wait_for_input()
     {
         std::unique_lock<std::mutex> lock(_mutex);
         page* ptr = nullptr;
+
+        LOG(TRACE, "waiting for intput, consumed={} written={} max={}", _consume_total, _write_total, _max_size);
 
         // reached end
         if (_consume_total >= _max_size) {
@@ -149,10 +173,16 @@ public:
         }
 
         // wait for input
-        spdlog::trace("waiting with {} pages", _pages.size());
-
         _waiter.wait(lock, [this, &ptr] {
+            if (_interrupted) {
+                return true;
+            }
+
+            LOG(TRACE, "page count={}", _pages.size());
+
             for (auto& page : _pages) {
+                LOG(TRACE, "page: consumed={} written={} max={}", page.consumed, page.written, page.size);
+
                 if (page.written > page.consumed) {
                     ptr = &page;
 
@@ -162,6 +192,11 @@ public:
 
             return false;
         });
+
+        // interrupt only if no input available
+        if (_interrupted && !ptr) {
+            throw exception::interrupted_exception("waiting was interrupted");
+        }
 
         auto begin = static_cast<std::int8_t*>(ptr->begin) + ptr->consumed;
         auto size  = ptr->written - ptr->consumed;
@@ -177,14 +212,20 @@ public:
      */
     void close()
     {
+        std::lock_guard<std::mutex> lock(_mutex);
+
         _max_size = _write_total;
     }
-    bool output_closed() const noexcept
+    bool output_closed() noexcept
     {
+        std::lock_guard<std::mutex> lock(_mutex);
+
         return _write_total >= _max_size;
     }
-    bool input_closed() const noexcept
+    bool input_closed() noexcept
     {
+        std::lock_guard<std::mutex> lock(_mutex);
+
         return _consume_total >= _max_size;
     }
     /**
@@ -208,6 +249,7 @@ private:
         std::size_t written;
     };
 
+    bool _interrupted;
     std::shared_ptr<allocator> _allocator;
     std::mutex _mutex;
     std::condition_variable _waiter;

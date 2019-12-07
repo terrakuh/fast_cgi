@@ -1,16 +1,17 @@
 #pragma once
 
 #include "buffer_manager.hpp"
-#include "buffer_reader.hpp"
 #include "detail/record.hpp"
+#include "io/output_manager.hpp"
+#include "io/reader.hpp"
 #include "log.hpp"
-#include "output_manager.hpp"
 #include "params.hpp"
 #include "request.hpp"
 #include "role.hpp"
 
 #include <array>
 #include <atomic>
+#include <iostream>
 #include <istream>
 #include <map>
 #include <memory>
@@ -25,15 +26,15 @@ class request_manager
 public:
     typedef detail::double_type id_type;
 
-    request_manager(const std::shared_ptr<allocator>& allocator,
+    request_manager(const std::shared_ptr<allocator>& allocator, const std::shared_ptr<io::reader>& reader,
                     const std::array<std::function<std::unique_ptr<role>()>, 3>& role_factories)
-        : _terminate_connection(false), _allocator(allocator), _role_factories(role_factories)
+        : _terminate_connection(false), _allocator(allocator), _reader(reader), _role_factories(role_factories)
     {}
     ~request_manager()
     {
         for (auto& request : _requests) {
             if (request.second->handler_thread.joinable()) {
-                LOG(debug("joining request({}) thread", request.first));
+                LOG(DEBUG, "joining request({}) thread", request.first);
 
                 request.second->handler_thread.join();
             }
@@ -53,7 +54,7 @@ public:
 
         return true;
     }
-    bool handle_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
+    bool handle_request(const std::shared_ptr<io::output_manager>& output_manager, detail::record record)
     {
         std::shared_ptr<request> request;
 
@@ -74,7 +75,7 @@ public:
             // ignore record
             if ((request && record.type == detail::TYPE::FCGI_BEGIN_REQUEST) ||
                 (!request && record.type != detail::TYPE::FCGI_BEGIN_REQUEST)) {
-                LOG(warn("ignoring record because of invalid type and request state (id: {})", record.request_id));
+                LOG(WARN, "ignoring record because of invalid type and request state (id: {})", record.request_id);
 
                 return false;
             }
@@ -88,30 +89,30 @@ public:
         // request is set if type is not FCGI_BEGIN_REQUEST
         switch (record.type) {
         case detail::TYPE::FCGI_BEGIN_REQUEST: {
-            _begin_request(reader, output_manager, record);
+            _begin_request(output_manager, record);
 
             break;
         }
         case detail::TYPE::FCGI_ABORT_REQUEST: {
-            reader.skip(record.content_length);
+            _reader->skip(record.content_length);
 
             request->cancelled.store(true, std::memory_order_release);
 
             break;
         }
         case detail::TYPE::FCGI_PARAMS: {
-            _forward_to_buffer(record.content_length, *request->params_buffer, reader);
+            _forward_to_buffer(record.content_length, *request->params_buffer);
 
             break;
         }
         case detail::TYPE::FCGI_DATA: {
-            _forward_to_buffer(record.content_length, *request->data_buffer, reader);
+            _forward_to_buffer(record.content_length, *request->data_buffer);
 
             break;
         }
         case detail::TYPE::FCGI_STDIN: {
-            //_forward_to_buffer(record.content_length, *request->input_buffer, reader);
-
+            //_forward_to_buffer(record.content_length, *request->input_buffer);
+            _reader->skip(record.content_length);
             break;
         }
         default: return false;
@@ -126,6 +127,7 @@ private:
     std::atomic_bool _terminate_connection;
     requests_type _requests;
     std::shared_ptr<allocator> _allocator;
+    std::shared_ptr<io::reader> _reader;
     std::array<std::function<std::unique_ptr<role>()>, 3> _role_factories;
 
     /**
@@ -133,9 +135,8 @@ private:
 
       @param length the length of the forward content
       @param[in] buffer the buffer
-      @param[in] reader the reader
      */
-    void _forward_to_buffer(detail::double_type length, buffer& buffer, reader& reader)
+    void _forward_to_buffer(detail::double_type length, buffer& buffer)
     {
         // end of stream
         if (length == 0) {
@@ -148,14 +149,14 @@ private:
 
                 // buffer is full -> ignore
                 if (buf.second == 0) {
-                    LOG(warn("buffer is full...skipping {} bytes", length - sent));
+                    LOG(WARN, "buffer is full...skipping {} bytes", length - sent);
 
-                    reader.skip(length - sent);
+                    _reader->skip(length - sent);
 
                     break;
                 }
 
-                reader.read(buf.first, buf.second);
+                _reader->read(buf.first, buf.second);
 
                 sent += buf.second;
             }
@@ -163,14 +164,13 @@ private:
     }
     void _request_hanlder(std::unique_ptr<role> role, std::shared_ptr<request> request)
     {
-        LOG(info("{}, {}", (void*) role.get(), (void*) request.get()));
         auto version = detail::VERSION::FCGI_VERSION_1;
 
         // read all parameters
         {
-            buffer_reader reader(request->params_buffer);
+            io::reader reader(request->params_buffer);
 
-            LOG(debug("reading all parameters"));
+            LOG(DEBUG, "reading all parameters");
 
             request->params._read_parameters(reader);
 
@@ -178,10 +178,10 @@ private:
         }
 
         // initialize input streams
-        input_streambuf sin(request->input_buffer);
-        input_streambuf sdata(request->data_buffer);
-        byte_istream input_stream(&sin);
-        byte_istream data_stream(&sdata);
+        io::input_streambuf sin(request->input_buffer);
+        io::input_streambuf sdata(request->data_buffer);
+        io::byte_istream input_stream(&sin);
+        io::byte_istream data_stream(&sdata);
 
         if (request->role_type == detail::ROLE::FCGI_FILTER || request->role_type == detail::ROLE::FCGI_RESPONDER) {
             static_cast<responder*>(role.get())->_input_stream = &input_stream;
@@ -196,27 +196,32 @@ private:
         }
 
         // create output streams
-        buffer_manager buffer_manager(1024, _allocator);
-        output_streambuf sout([&request, version, &buffer_manager](void* buffer,
-                                                                   std::size_t size) -> std::pair<void*, std::size_t> {
-            auto flag = detail::record::write(version, request->id, *request->output_manager,
-                                              detail::stdout_stream{ buffer, static_cast<detail::double_type>(size) });
+        io::output_streambuf sout([&request, version](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
+            if (buffer) {
+                auto flag =
+                    detail::record::write(version, request->id, *request->output_manager,
+                                          detail::stdout_stream{ buffer, static_cast<detail::double_type>(size) });
 
-            buffer_manager.free_page(buffer, flag);
+                request->output_manager->buffer_manager().free_page(buffer, flag);
+            }
 
-            return { buffer_manager.new_page(), buffer_manager.page_size() };
+            return { request->output_manager->buffer_manager().new_page(),
+                     request->output_manager->buffer_manager().page_size() };
         });
-        output_streambuf serr([&request, version, &buffer_manager](void* buffer,
-                                                                   std::size_t size) -> std::pair<void*, std::size_t> {
-            auto flag = detail::record::write(version, request->id, *request->output_manager,
-                                              detail::stderr_stream{ buffer, static_cast<detail::double_type>(size) });
+        io::output_streambuf serr([&request, version](void* buffer, std::size_t size) -> std::pair<void*, std::size_t> {
+            if (buffer) {
+                auto flag =
+                    detail::record::write(version, request->id, *request->output_manager,
+                                          detail::stderr_stream{ buffer, static_cast<detail::double_type>(size) });
 
-            buffer_manager.free_page(buffer, flag);
+                request->output_manager->buffer_manager().free_page(buffer, flag);
+            }
 
-            return { buffer_manager.new_page(), buffer_manager.page_size() };
+            return { request->output_manager->buffer_manager().new_page(),
+                     request->output_manager->buffer_manager().page_size() };
         });
-        byte_ostream output_stream(&sout);
-        byte_ostream error_stream(&serr);
+        io::byte_ostream output_stream(&sout);
+        io::byte_ostream error_stream(&serr);
 
         role->_params        = &request->params;
         role->_output_stream = &output_stream;
@@ -228,18 +233,18 @@ private:
 
         try {
             status = role->run();
-
-            LOG(info("role finished with status code={}", status));
         } catch (const std::exception& e) {
-            LOG(error("role executor threw an exception ({})", e.what()));
+            LOG(ERROR, "role executor threw an exception ({})", e.what());
         } catch (...) {
-            LOG(error("role executor threw an exception"));
+            LOG(ERROR, "role executor threw an exception");
         }
 
+        LOG(INFO, "role finished with status code={}", static_cast<detail::quadruple_type>(status));
+
         // flush and finish all output streams
-        sout.pubsync();
+        output_stream.flush();
         detail::record::write(version, request->id, *request->output_manager, detail::stdout_stream{ nullptr, 0 });
-        serr.pubsync();
+        error_stream.flush();
         detail::record::write(version, request->id, *request->output_manager, detail::stderr_stream{ nullptr, 0 });
 
         // end request
@@ -247,19 +252,22 @@ private:
                               detail::end_request{ static_cast<detail::quadruple_type>(status),
                                                    detail::PROTOCOL_STATUS::FCGI_REQUEST_COMPLETE });
 
-        LOG(info("request {} finished; removing", request->id));
+        LOG(INFO, "request {} finished; removing", request->id);
 
-        // trigger end
+        // trigger end and interrupt reading buffer
         if (request->close_connection) {
+            LOG(DEBUG, "terminating connection");
+
             _terminate_connection.store(true, std::memory_order_release);
+            _reader->interrupt();
         }
 
         request->finished.store(true, std::memory_order_release);
     }
-    void _begin_request(reader& reader, const std::shared_ptr<output_manager>& output_manager, detail::record record)
+    void _begin_request(const std::shared_ptr<io::output_manager>& output_manager, detail::record record)
     {
-        auto body    = detail::begin_request::read(reader);
-        auto request = std::make_shared<class request>(record.request_id, body.role, output_manager,
+        auto body    = detail::begin_request::read(*_reader);
+        auto request = std::make_shared<struct request>(record.request_id, body.role, output_manager,
                                                        (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0);
 
         switch (body.role) {
@@ -271,7 +279,7 @@ private:
             if (factory) {
                 auto role = factory();
 
-                LOG(info("created role; launching request thread"));
+                LOG(INFO, "created role; launching request thread");
                 request->params_buffer.reset(new buffer(_allocator, 99999));
 
                 // launch thread
@@ -282,7 +290,7 @@ private:
             } // else fall through, because role is unimplemented
         }
         default: {
-            LOG(error("begin request record rejected because of unknown/unimplemented role {}", body.role));
+            LOG(ERROR, "begin request record rejected because of unknown/unimplemented role {}", body.role);
 
             // reject because role is unknown
             detail::record::write(detail::FCGI_VERSION_1, record.request_id, *output_manager,

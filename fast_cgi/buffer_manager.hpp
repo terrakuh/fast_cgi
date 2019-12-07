@@ -18,13 +18,30 @@ public:
     {
         _page_size = page_size;
     }
+    buffer_manager(const buffer_manager& copy) = delete;
+    buffer_manager(buffer_manager&& copy)      = delete;
+    ~buffer_manager()
+    {
+        for (auto& page : _pages) {
+            _allocator->deallocate(page, _page_size);
+        }
+
+        for (auto& page : _free_pages) {
+            _allocator->deallocate(page.first, _page_size);
+        }
+    }
     void free_page(void* page, const std::shared_ptr<std::atomic_bool>& tracker = nullptr)
     {
         auto result = _pages.find(page);
 
         if (result != _pages.end()) {
+            auto ptr = *result;
+
             _pages.erase(result);
-            _free_pages.push_back({ *result, tracker });
+
+            _free_pages.push_back({ ptr, tracker });
+        } else {
+            LOG(CRITICAL, "requesting freeing of unkown page: {}", page);
         }
     }
     void* new_page()

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../byte_stream.hpp"
+#include "../io/byte_stream.hpp"
 
 namespace fast_cgi {
 namespace manipulator {
 
-inline byte_ostream& feed(byte_ostream& stream)
+inline io::byte_ostream& feed(io::byte_ostream& stream)
 {
 	return stream << "\r\n";
 }

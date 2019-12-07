@@ -1,13 +1,13 @@
 #pragma once
 
-#include "byte_stream.hpp"
+#include "io/byte_stream.hpp"
 #include "detail/config.hpp"
 #include "exception/invalid_role_exception.hpp"
 #include "params.hpp"
 
+#include <atomic>
 #include <memory>
 #include <type_traits>
-#include <atomic>
 
 namespace fast_cgi {
 
@@ -31,6 +31,10 @@ public:
     {
         return _cancelled->load(std::memory_order_acquire);
     }
+    const std::string& params(const std::string& key) const
+    {
+        return (*_params)[key];
+    }
     /**
       Returns the associated parameters given by the web server.
 
@@ -40,11 +44,11 @@ public:
     {
         return *_params;
     }
-    byte_ostream& output() noexcept
+    io::byte_ostream& output() noexcept
     {
         return *_output_stream;
     }
-    byte_ostream& error() noexcept
+    io::byte_ostream& error() noexcept
     {
         return *_error_stream;
     }
@@ -54,8 +58,8 @@ private:
 
     std::atomic_bool* _cancelled;
     class params* _params;
-    byte_ostream* _output_stream;
-    byte_ostream* _error_stream;
+    io::byte_ostream* _output_stream;
+    io::byte_ostream* _error_stream;
 };
 
 class responder : public role
@@ -65,7 +69,7 @@ public:
     {
         _input_stream = nullptr;
     }
-    byte_istream& input()
+    io::byte_istream& input()
     {
         if (!_input_stream) {
             throw exception::invalid_role_exception("this role wasn't initialized as responder or filter");
@@ -77,7 +81,7 @@ public:
 private:
     friend class request_manager;
 
-    byte_istream* _input_stream;
+    io::byte_istream* _input_stream;
 };
 
 class authorizer : public role
@@ -90,7 +94,7 @@ public:
     {
         _data_stream = nullptr;
     }
-    byte_istream& data()
+    io::byte_istream& data()
     {
         if (!_data_stream) {
             throw exception::invalid_role_exception("this role wasn't initialized as filter");
@@ -102,7 +106,7 @@ public:
 private:
     friend class request_manager;
 
-    byte_istream* _data_stream;
+    io::byte_istream* _data_stream;
 };
 
 } // namespace fast_cgi

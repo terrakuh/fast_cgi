@@ -1,7 +1,8 @@
 #pragma once
 
-#include "connection.hpp"
-#include "log.hpp"
+#include "../buffer_manager.hpp"
+#include "../connection.hpp"
+#include "../log.hpp"
 #include "writer.hpp"
 
 #include <atomic>
@@ -14,16 +15,17 @@
 #include <utility>
 
 namespace fast_cgi {
+namespace io {
 
 class output_manager
 {
 public:
     typedef std::function<void(writer&)> task_type;
 
-    output_manager(const std::shared_ptr<connection>& connection)
-        : _alive(true), _writer(connection), _thread(&output_manager::_run, this)
+    output_manager(const std::shared_ptr<connection>& connection, const std::shared_ptr<allocator>& allocator)
+        : _alive(true), _writer(connection), _thread(&output_manager::_run, this), _buffer_manager(1024, allocator)
     {
-        LOG(trace("output manager thread started"));
+        LOG(TRACE, "output manager thread started");
     }
     ~output_manager()
     {
@@ -35,7 +37,11 @@ public:
         // wait
         _thread.join();
 
-        LOG(trace("output manager thread terminated"));
+        LOG(TRACE, "output manager thread terminated");
+    }
+    class buffer_manager& buffer_manager() noexcept
+    {
+        return _buffer_manager;
     }
     /**
       Adds a writing task to the queue. The task are executed on a different thread at an unspecified time.
@@ -45,6 +51,8 @@ public:
      */
     std::shared_ptr<std::atomic_bool> add(task_type&& task)
     {
+        LOG(DEBUG, "adding output task");
+
         std::lock_guard<std::mutex> lock(_mutex);
         std::shared_ptr<std::atomic_bool> ret(new std::atomic_bool(false));
 
@@ -63,6 +71,7 @@ private:
     std::condition_variable _cv;
     writer _writer;
     std::thread _thread;
+    class buffer_manager _buffer_manager;
 
     void _run()
     {
@@ -87,10 +96,15 @@ private:
                 _queue.pop_front();
             }
 
+            LOG(TRACE, "executing writer task");
+
             // execute task
             try {
                 task.first(_writer);
+            } catch (const std::exception& e) {
+                LOG(CRITICAL, "failed to execute writer task ({})", e.what());
             } catch (...) {
+                LOG(CRITICAL, "failed to execute writer task");
             }
 
             task.second->store(true, std::memory_order_release);
@@ -98,4 +112,5 @@ private:
     }
 };
 
+} // namespace io
 } // namespace fast_cgi
