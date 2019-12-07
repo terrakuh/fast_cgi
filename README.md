@@ -5,9 +5,10 @@
   - [Without CMake](#without-cmake)
 - [Cheatsheet](#cheatsheet)
   - [Roles](#roles)
-    - [Responder](#responder)
-    - [Filter](#filter)
-    - [Authorizer](#authorizer)
+    - [Responder (`fast_cgi::responder`)](#responder-fast_cgiresponder)
+    - [Filter (`fast_cgi::filter`)](#filter-fast_cgifilter)
+    - [Authorizer (`fast_cgi::authorizer`)](#authorizer-fast_cgiauthorizer)
+  - [Parameters](#parameters)
 - [License](#license)
 
 ## Installation
@@ -43,14 +44,42 @@ Just copy the *fast_cgi* folder with *.hpp* files to your project or set it as i
 
 ### Roles
 
-Every role is provided an output stream by `output()`, an error stream by `error()` and request parameters by `params()`.
+Every role is provided an output stream by `output()`, an error stream by `error()` and request parameters by `params()`. Only one user specific role for each type can be integrated. Integration can look like:
 
-#### Responder
+```cpp
+protocol.set_role<my_responder>();
+```
+
+#### Responder (`fast_cgi::responder`)
 
 A responder additionally receives optinal input by `input()`.
 
-#### Filter
+#### Filter (`fast_cgi::filter`)
 
-#### Authorizer
+#### Authorizer (`fast_cgi::authorizer`)
+
+### Parameters
+
+Parameters can be iterated like:
+
+```cpp
+for (auto& parameter : params()) {
+    std::cout << parameter.first << "=" << parameter.second << "\n";
+}
+```
+
+Getting a parameter (this example may throw an `std::out_of_range` exception if the key does not exist):
+
+```cpp
+auto& value = params()["REQUEST_URI"];
+// or
+auto& value = params("REQUEST_URI");
+```
+
+Checking if a parameter is available:
+
+```cpp
+auto has_uri = params().has("REQUEST_URI");
+```
 
 ## License
