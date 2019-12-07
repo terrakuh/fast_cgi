@@ -212,14 +212,20 @@ public:
      */
     void close()
     {
+        std::lock_guard<std::mutex> lock(_mutex);
+
         _max_size = _write_total;
     }
-    bool output_closed() const noexcept
+    bool output_closed() noexcept
     {
+        std::lock_guard<std::mutex> lock(_mutex);
+
         return _write_total >= _max_size;
     }
-    bool input_closed() const noexcept
+    bool input_closed() noexcept
     {
+        std::lock_guard<std::mutex> lock(_mutex);
+
         return _consume_total >= _max_size;
     }
     /**
