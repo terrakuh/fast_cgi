@@ -1,9 +1,9 @@
 #include <arpa/inet.h>
-#include <cassert>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <fast_cgi/fast_cgi.hpp>
+#include <fast_cgi/simple_allocator.hpp>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -129,21 +129,6 @@ public:
     }
 };
 
-class all : public fast_cgi::allocator
-{
-    // Inherited via allocator
-    virtual void* allocate(std::size_t size, std::size_t align) override
-    {
-        assert(align == 1);
-
-        return std::malloc(size);
-    }
-    virtual void deallocate(void* ptr, std::size_t size) override
-    {
-        std::free(ptr);
-    }
-};
-
 int main()
 {
 #if defined(FAST_CGI_ENABLE_LOGGING)
@@ -152,7 +137,7 @@ int main()
 #endif
 
     // create server
-    fast_cgi::protocol protocol(std::make_shared<con>(), std::make_shared<all>());
+    fast_cgi::protocol protocol(std::make_shared<con>(), std::make_shared<fast_cgi::simple_allocator>());
 
     protocol.set_role<responder>();
 
