@@ -83,6 +83,7 @@ public:
     std::size_t read(void* buffer, std::size_t size)
     {
         const auto initial_size = size;
+        auto ptr                = static_cast<std::int8_t*>(buffer);
 
         // need more
         while (size > 0) {
@@ -102,9 +103,10 @@ public:
 
             auto s = std::min(size, static_cast<std::size_t>(_end - _begin));
 
-            std::memcpy(buffer, _begin, s);
+            std::memcpy(ptr, _begin, s);
 
             _begin += s;
+            ptr += s;
             size -= s;
         }
 
