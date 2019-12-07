@@ -102,7 +102,7 @@ private:
             try {
                 task.first(_writer);
             } catch (const std::exception& e) {
-                LOG(CRITICAL, "failed to execute writer task ({}) {}", e.what());
+                LOG(CRITICAL, "failed to execute writer task ({})", e.what());
             } catch (...) {
                 LOG(CRITICAL, "failed to execute writer task");
             }
