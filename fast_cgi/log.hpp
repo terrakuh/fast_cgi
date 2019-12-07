@@ -1,6 +1,6 @@
 #pragma once
 
-#define FAST_CGI_ENABLE_LOGGING
+/* #undef FAST_CGI_ENABLE_LOGGING */
 
 #if defined(FAST_CGI_ENABLE_LOGGING)
 #    define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE

@@ -44,7 +44,7 @@ Just copy the *fast_cgi* folder with *.hpp* files to your project or set it as i
 
 ### Roles
 
-Every role is provided an output stream by `output()`, an error stream by `error()` and request parameters by `params()`. Only one user specific role for each type can be integrated. Integration can look like:
+Every role is provided an output stream by `output()`, an error stream by `error()` and request parameters by `params()`. Only one user specific role can be integrated for each type. Integration can look like:
 
 ```cpp
 protocol.set_role<my_responder>();
@@ -83,3 +83,5 @@ auto has_uri = params().has("REQUEST_URI");
 ```
 
 ## License
+
+[MIT License](https://github.com/terrakuh/fast_cgi/blob/master/LICENSE)
