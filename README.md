@@ -47,7 +47,7 @@ Just copy the *fast_cgi* folder with all the *.hpp* files to your project or set
 
 ### Roles
 
-Every role is provided an output stream by `output()`, an error stream by `error()` and request parameters by `params()`. Only one user specific role can be integrated for each type. Integration can look like:
+Every role is provided an output stream by `output()`, an error stream by `error()` and request parameters by `params()`. For every incoming request from the web server a new role instance is created. Only one user specific role can be integrated for each type. Integration can look like this:
 
 ```cpp
 protocol.set_role<my_responder>();
