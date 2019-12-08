@@ -70,7 +70,7 @@ public:
         using namespace fast_cgi::manipulator;
 
         output() << "Content-type: text/html" << feed << feed;
-        output() << "<html>"
+        output() << "<html><body>"
                  << "<h1>" << "Hello, World!" << "</h1><br/><br/>"
                  << "<span>Here are all parameters:</span><br/>";
 
@@ -81,6 +81,7 @@ public:
         
         output() << "<span>Your payload:</span><br/>";
         output() << input().rdbuf();
+        output() << "</body></html>"
 
         return 0;
     }
