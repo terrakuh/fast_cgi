@@ -24,6 +24,8 @@ Requirements:
 ```cmd
 git clone https://github.com/terrakuh/fast_cgi.git
 cd fast_cgi
+git submodule init
+git submodule update
 
 mkdir build
 cd build
@@ -31,6 +33,7 @@ cd build
 cmake ..
 
 # cmake -DFAST_CGI_BUILD_EXAMPLES=OFF
+# cmake -DFAST_CGI_ENABLE_LOGGING=OFF
 
 cmake --build .
 cmake --build . --target install
@@ -38,7 +41,7 @@ cmake --build . --target install
 
 ### Without CMake
 
-Just copy the *fast_cgi* folder with *.hpp* files to your project or set it as include directory.
+Just copy the *fast_cgi* folder with all the *.hpp* files to your project or set it as include directory. If logging is enabled (logging can be disabled by manually deleting the macro `FAST_CGI_ENABLE_LOGGING` in `log.hpp`) *spdlog* is also required.
 
 ## Cheatsheet
 
@@ -50,13 +53,49 @@ Every role is provided an output stream by `output()`, an error stream by `error
 protocol.set_role<my_responder>();
 ```
 
+A detailed definition of the following roles can be found [here](https://fastcgi-archives.github.io/FastCGI_Specification.html#S6.1).
+
 #### Responder (`fast_cgi::responder`)
 
-A responder additionally receives optinal input by `input()`.
+A responder additionally receives optinal input by `input()`. This role has the same purpose as simple CGI/1.1 programs (this is probably what you want). A simple *Hello, Wolrd* might look like this:
+
+```cpp
+#include <fast_cgi/fast_cgi.hpp>
+
+class hello_world : public fast_cgi::responder
+{
+public:
+    virtual status_code_type run() override
+    {
+        using namespace fast_cgi::manipulator;
+
+        output() << "Content-type: text/html" << feed << feed;
+        output() << "<html>"
+                 << "<h1>" << "Hello, World!" << "</h1><br/><br/>"
+                 << "<span>Here are all parameters:</span><br/>";
+
+        // Print all parameters
+        for (auto& i : params()) {
+            output() << i.first << "=" << i.second << "<br/>";
+        }
+        
+        output() << "<span>Your payload:</span><br/>";
+        output() << input().rdbuf();
+
+        return 0;
+    }
+};
+```
+
+More information can be found [here](https://fastcgi-archives.github.io/FastCGI_Specification.html#S6.2).
 
 #### Filter (`fast_cgi::filter`)
 
+See [here](https://fastcgi-archives.github.io/FastCGI_Specification.html#S6.4).
+
 #### Authorizer (`fast_cgi::authorizer`)
+
+See [here](https://fastcgi-archives.github.io/FastCGI_Specification.html#S6.3).
 
 ### Parameters
 
