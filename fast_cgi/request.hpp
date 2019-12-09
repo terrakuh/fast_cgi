@@ -26,9 +26,10 @@ struct request
     const bool close_connection;
 
     request(detail::double_type id, detail::ROLE role_type, const std::shared_ptr<io::output_manager>& output_manager,
-            bool close_connection)
-        : id(id), role_type(role_type), finished(false), output_manager(output_manager), cancelled(false),
-          close_connection(close_connection)
+            bool close_connection, const std::shared_ptr<allocator>& allocator)
+        : id(id), role_type(role_type), finished(false), output_manager(output_manager),
+          params_buffer(new buffer(allocator, 99999)), input_buffer(new buffer(allocator, 99999)),
+          data_buffer(new buffer(allocator, 99999)), cancelled(false), close_connection(close_connection)
     {}
 };
 

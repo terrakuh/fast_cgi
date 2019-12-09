@@ -139,6 +139,12 @@ public:
 
         return _interrupted;
     }
+    void set_max(std::size_t max)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        _max_size = max;
+    }
     /**
       Blocks until the buffer has reached max size.
 

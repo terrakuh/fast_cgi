@@ -111,8 +111,8 @@ public:
             break;
         }
         case detail::TYPE::FCGI_STDIN: {
-            //_forward_to_buffer(record.content_length, *request->input_buffer);
-            _reader->skip(record.content_length);
+            _forward_to_buffer(record.content_length, *request->input_buffer);
+
             break;
         }
         default: return false;
@@ -175,6 +175,15 @@ private:
             request->params._read_parameters(reader);
 
             // initialize input buffers
+            std::size_t content_size = 0;
+
+            try {
+                content_size = static_cast<std::size_t>(std::stoull(request->params["CONTENT_LENGTH"]));
+            } catch (const std::exception& e) {
+                LOG(WARN, "failed to parse content length ({})", e.what());
+            }
+
+            request->input_buffer->set_max(content_size);
         }
 
         // initialize input streams
@@ -190,9 +199,23 @@ private:
             if (request->role_type == detail::ROLE::FCGI_FILTER) {
                 dynamic_cast<filter*>(role.get())->_data_stream = &data_stream;
 
+                std::size_t content_size = 0;
+
+                try {
+                    content_size = static_cast<std::size_t>(std::stoull(request->params["FCGI_DATA_LENGTH"]));
+                } catch (const std::exception& e) {
+                    LOG(WARN, "failed to parse data content length ({})", e.what());
+                }
+
+                request->data_buffer->set_max(content_size);
+
                 // wait until input stream finished reading
                 request->input_buffer->wait_for_all_input();
+            } else {
+                request->data_buffer->close();
             }
+        } else {
+            request->data_buffer->close();
         }
 
         // create output streams
@@ -268,7 +291,7 @@ private:
     {
         auto body    = detail::begin_request::read(*_reader);
         auto request = std::make_shared<struct request>(record.request_id, body.role, output_manager,
-                                                       (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0);
+                                                        (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0, _allocator);
 
         switch (body.role) {
         case detail::ROLE::FCGI_AUTHORIZER:
@@ -280,7 +303,6 @@ private:
                 auto role = factory();
 
                 LOG(INFO, "created role; launching request thread");
-                request->params_buffer.reset(new buffer(_allocator, 99999));
 
                 // launch thread
                 request->handler_thread =
