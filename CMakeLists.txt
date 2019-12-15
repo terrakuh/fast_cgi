@@ -6,9 +6,11 @@ project("fast_cgi"
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
 option(FAST_CGI_BUILD_EXAMPLES "Build examples." ON)
 option(FAST_CGI_ENABLE_LOGGING "Enable logging." ON)
 option(FAST_CGI_BUILD_TESTS "Build tests." ON)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O -Wall -Wextra -Wuninitialized -fno-omit-frame-pointer -fsanitize=thread -stdlib=libc++ -L/home/crona/libcxx_tsan/lib -lc++abi -I/home/crona/libcxx_tsan/include -I/home/crona/libcxx_tsan/include/c++/v1 -Wl,-rpath,/home/crona/libcxx_tsan/lib -fPIE -fpie -fsanitize=undefined,float-divide-by-zero,integer,nullability -g")
 
 find_package(Threads REQUIRED)
 

@@ -31,7 +31,7 @@ public:
             output() << i.first << "=" << i.second << "<br/>";
         }
 
-        output() << "</html>";
+        output() << "</html>" << input().rdbuf();
 
         return 0;
     }
@@ -133,7 +133,7 @@ int main()
 {
 #if defined(FAST_CGI_ENABLE_LOGGING)
     spdlog::default_logger_raw()->set_pattern("[%T:%e | %=5t | %-20s at %-3# (%-20!)] [%^%=8l%$]\n\t%v");
-    spdlog::default_logger_raw()->set_level(spdlog::level::trace);
+    //spdlog::default_logger_raw()->set_level(spdlog::level::trace);
 #endif
 
     // create server

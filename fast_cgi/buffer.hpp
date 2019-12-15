@@ -79,8 +79,8 @@ public:
         void close() noexcept
         {
             if (!closed()) {
-                _lock.unlock();
                 _buffer->_waiter.notify_one();
+                _lock.unlock();
 
                 _buffer = nullptr;
             }
@@ -181,7 +181,7 @@ public:
         // wait for input
         _waiter.wait(lock, [this, &ptr] {
             if (_interrupted) {
-                return true;
+                throw exception::interrupted_exception("waiting was interrupted");
             }
 
             LOG(TRACE, "page count={}", _pages.size());
@@ -198,11 +198,6 @@ public:
 
             return false;
         });
-
-        // interrupt only if no input available
-        if (_interrupted && !ptr) {
-            throw exception::interrupted_exception("waiting was interrupted");
-        }
 
         auto begin = static_cast<std::int8_t*>(ptr->begin) + ptr->consumed;
         auto size  = ptr->written - ptr->consumed;
