@@ -119,13 +119,15 @@ public:
     }
 
     // Inherited via connector
-    virtual std::shared_ptr<fast_cgi::connection> accept() override
+    virtual void run(const acceptor_type& acceptor) override
     {
         int c = sizeof(struct sockaddr_in);
         struct sockaddr_in client;
 
-        return std::shared_ptr<fast_cgi::connection>(
-            new conn(::accept(s, (struct sockaddr*) &client, (socklen_t*) &c)));
+        while (true) {
+            acceptor(std::shared_ptr<fast_cgi::connection>(
+                new conn(accept(s, (struct sockaddr*) &client, (socklen_t*) &c))));
+        }
     }
 };
 

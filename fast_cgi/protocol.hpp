@@ -38,14 +38,11 @@ public:
     }
     void run()
     {
-        // accept
-        std::shared_ptr<connection> connection;
-
-        while ((connection = _connector->accept())) {
+        _connector->run([this](std::shared_ptr<connection> conn) {
             LOG(INFO, "accepted new connection; launching new thread");
 
-            _connections.push_back(std::thread(&protocol::_connection_thread, this, std::move(connection)));
-        }
+            _connections.push_back(std::thread(&protocol::_connection_thread, this, std::move(conn)));
+        });
     }
     void join()
     {
