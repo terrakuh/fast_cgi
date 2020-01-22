@@ -56,7 +56,7 @@ public:
         delete[] buffer;
         ::close(s);
         s = 0;
-        LOG(DEBUG, "killing connection");
+        FAST_CGI_LOG(DEBUG, "killing connection");
     }
     virtual size_type do_in_available() override
     {
@@ -67,7 +67,7 @@ public:
     virtual void do_flush() override
     {
         if (ptr - buffer) {
-            LOG(DEBUG, "flushing {}", buff{ buffer, std::size_t(ptr - buffer) });
+            FAST_CGI_LOG(DEBUG, "flushing {}", buff{ buffer, std::size_t(ptr - buffer) });
 
             send(s, buffer, ptr - buffer, 0);
             ptr = buffer;
@@ -78,7 +78,7 @@ public:
         auto t = recv(s, (char*) buffer, at_most, 0);
 
         if (t < 0) {
-            LOG(CRITICAL, "faile0 to receive d {}", t);
+            FAST_CGI_LOG(CRITICAL, "faile0 to receive d {}", t);
         }
 
         return t;
@@ -113,7 +113,7 @@ public:
         struct sockaddr_in server;
         server.sin_family      = AF_INET;
         server.sin_addr.s_addr = INADDR_ANY;
-        server.sin_port        = htons(32158);
+        server.sin_port        = htons(16948);
         bind(s, (struct sockaddr*) &server, sizeof(server));
         listen(s, 3);
     }
@@ -133,11 +133,8 @@ public:
 
 int main()
 {
-#if defined(FAST_CGI_ENABLE_LOGGING)
-    spdlog::default_logger_raw()->set_pattern("[%T:%e | %=5t | %-20s at %-3# (%-20!)] [%^%=8l%$]\n\t%v");
-    spdlog::default_logger_raw()->set_level(spdlog::level::trace);
-#endif
-
+    fast_cgi::get_default_logger()->set_level(spdlog::level::trace);
+    
     // create server
     fast_cgi::protocol protocol(std::make_shared<con>(), std::make_shared<fast_cgi::simple_allocator>());
 
