@@ -5,6 +5,7 @@
 #if defined(FAST_CGI_ENABLE_LOGGING)
 #	define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #	define FAST_CGI_LOGGER_NAME "@FAST_CGI_LOGGER_NAME@"
+#	define FAST_CGI_LOGGER_PATTERN "@FAST_CGI_LOGGER_PATTERN@"
 #	include <iostream>
 #	include <mutex>
 #	include <spdlog/spdlog.h>
@@ -58,7 +59,7 @@ inline std::shared_ptr<spdlog::logger> get_default_logger()
 	static std::shared_ptr<spdlog::logger> logger([] {
 		auto logger = spdlog::stdout_color_mt(FAST_CGI_LOGGER_NAME);
 
-		logger->set_pattern("[%T:%e | %=5t | %-20s at %-3# (%-20!)] [%^%=8l%$]\n\t%v");
+		logger->set_pattern(FAST_CGI_LOGGER_PATTERN);
 
 		return logger;
 	}());
