@@ -12,7 +12,6 @@
 #include <mutex>
 #include <utility>
 
-
 namespace fast_cgi {
 
 class buffer
@@ -221,8 +220,8 @@ public:
 		std::lock_guard<std::mutex> lock(_mutex);
 
 		_max_size = _write_total;
-        
-        _waiter.notify_all();
+
+		_waiter.notify_all();
 	}
 	bool output_closed() noexcept
 	{

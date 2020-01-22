@@ -8,7 +8,7 @@ namespace exception {
 class invalid_role_exception : public fastcgi_exception
 {
 public:
-    using fastcgi_exception::fastcgi_exception;
+	using fastcgi_exception::fastcgi_exception;
 };
 
 } // namespace exception

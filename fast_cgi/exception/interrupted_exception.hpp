@@ -8,7 +8,7 @@ namespace exception {
 class interrupted_exception : public io_exception
 {
 public:
-    using io_exception::io_exception;
+	using io_exception::io_exception;
 };
 
 } // namespace exception

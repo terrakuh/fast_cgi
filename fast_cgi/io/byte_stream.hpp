@@ -23,97 +23,97 @@ typedef std::istream byte_istream;
 class input_streambuf : public std::basic_streambuf<byte_type>
 {
 public:
-    input_streambuf(const std::shared_ptr<buffer>& buffer) : _buffer(buffer)
-    {}
+	input_streambuf(const std::shared_ptr<buffer>& buffer) : _buffer(buffer)
+	{}
 
 protected:
-    virtual int_type underflow() override
-    {
-        if (!_buffer) {
-            return traits_type::eof();
-        }
+	virtual int_type underflow() override
+	{
+		if (!_buffer) {
+			return traits_type::eof();
+		}
 
-        // wait for input
-        auto input = _buffer->wait_for_input();
+		// wait for input
+		auto input = _buffer->wait_for_input();
 
-        // reached end
-        if (input.second == 0) {
-            _buffer.reset();
+		// reached end
+		if (input.second == 0) {
+			_buffer.reset();
 
-            return traits_type::eof();
-        }
+			return traits_type::eof();
+		}
 
-        auto ptr = static_cast<byte_type*>(input.first);
+		auto ptr = static_cast<byte_type*>(input.first);
 
-        setg(ptr, ptr, ptr + input.second);
+		setg(ptr, ptr, ptr + input.second);
 
-        return traits_type::to_int_type(*ptr);
-    }
+		return traits_type::to_int_type(*ptr);
+	}
 
 private:
-    std::shared_ptr<buffer> _buffer;
+	std::shared_ptr<buffer> _buffer;
 };
 
 class output_streambuf : public std::basic_streambuf<byte_type>
 {
 public:
-    typedef std::function<std::pair<void*, std::size_t>(void*, std::size_t)> writer_type;
+	typedef std::function<std::pair<void*, std::size_t>(void*, std::size_t)> writer_type;
 
-    output_streambuf(writer_type writer) : _writer(writer)
-    {}
+	output_streambuf(writer_type writer) : _writer(writer)
+	{}
 
 protected:
-    virtual std::streamsize xsputn(const char_type* s, std::streamsize count) override
-    {
-        const auto initial_count = count;
+	virtual std::streamsize xsputn(const char_type* s, std::streamsize count) override
+	{
+		const auto initial_count = count;
 
-        while (count) {
-            if (epptr() == pptr()) {
-                sync();
+		while (count) {
+			if (epptr() == pptr()) {
+				sync();
 
-                if (epptr() == pptr()) {
-                    break;
-                }
-            }
+				if (epptr() == pptr()) {
+					break;
+				}
+			}
 
-            auto size = std::min(count, static_cast<std::streamsize>(epptr() - pptr()));
+			auto size = std::min(count, static_cast<std::streamsize>(epptr() - pptr()));
 
-            std::memcpy(pptr(), s, size);
-            pbump(size);
+			std::memcpy(pptr(), s, size);
+			pbump(size);
 
-            s += size;
-            count -= size;
-        }
+			s += size;
+			count -= size;
+		}
 
-        return initial_count - count;
-    }
-    virtual int sync() override
-    {
-        if (!pptr() || pptr() > pbase()) {
-            auto _buffer = _writer(pbase(), static_cast<std::size_t>(pptr() - pbase()));
+		return initial_count - count;
+	}
+	virtual int sync() override
+	{
+		if (!pptr() || pptr() > pbase()) {
+			auto _buffer = _writer(pbase(), static_cast<std::size_t>(pptr() - pbase()));
 
-            setp(static_cast<byte_type*>(_buffer.first), static_cast<byte_type*>(_buffer.first) + _buffer.second);
-        }
+			setp(static_cast<byte_type*>(_buffer.first), static_cast<byte_type*>(_buffer.first) + _buffer.second);
+		}
 
-        return 0;
-    }
-    virtual int_type overflow(int_type c = traits_type::eof()) override
-    {
-        // write
-        sync();
+		return 0;
+	}
+	virtual int_type overflow(int_type c = traits_type::eof()) override
+	{
+		// write
+		sync();
 
-        // buffer is full
-        if (pptr() == epptr()) {
-            return traits_type::eof();
-        } else if (c != traits_type::eof()) {
-            sputc(traits_type::to_char_type(c));
-        }
+		// buffer is full
+		if (pptr() == epptr()) {
+			return traits_type::eof();
+		} else if (c != traits_type::eof()) {
+			sputc(traits_type::to_char_type(c));
+		}
 
-        return traits_type::to_int_type(0);
-    }
+		return traits_type::to_int_type(0);
+	}
 
 private:
-    writer_type _writer;
+	writer_type _writer;
 };
 
 } // namespace io

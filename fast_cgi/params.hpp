@@ -13,56 +13,56 @@ namespace fast_cgi {
 class params
 {
 public:
-    typedef std::map<std::string, std::string> map_type;
+	typedef std::map<std::string, std::string> map_type;
 
-    constexpr static auto REQUEST_URI    = "REQUEST_URI";
-    constexpr static auto QUERY_STRING   = "QUERY_STRING";
-    constexpr static auto CONTENT_LENGTH = "CONTENT_LENGTH";
-    constexpr static auto CONTENT_TYPE   = "CONTENT_TYPE";
+	constexpr static auto REQUEST_URI    = "REQUEST_URI";
+	constexpr static auto QUERY_STRING   = "QUERY_STRING";
+	constexpr static auto CONTENT_LENGTH = "CONTENT_LENGTH";
+	constexpr static auto CONTENT_TYPE   = "CONTENT_TYPE";
 
-    map_type::const_iterator begin() const
-    {
-        return _parameters.begin();
-    }
-    map_type::const_iterator end() const
-    {
-        return _parameters.end();
-    }
-    bool has(const std::string& key) const
-    {
-        return _parameters.find(key) != _parameters.end();
-    }
-    const std::string& operator[](const std::string& key) const
-    {
-        return _parameters.at(key);
-    }
+	map_type::const_iterator begin() const
+	{
+		return _parameters.begin();
+	}
+	map_type::const_iterator end() const
+	{
+		return _parameters.end();
+	}
+	bool has(const std::string& key) const
+	{
+		return _parameters.find(key) != _parameters.end();
+	}
+	const std::string& operator[](const std::string& key) const
+	{
+		return _parameters.at(key);
+	}
 
 private:
-    friend class request_manager;
+	friend class request_manager;
 
-    map_type _parameters;
+	map_type _parameters;
 
-    void _read_parameters(io::reader& reader)
-    {
-        try {
-            while (true) {
-                auto pair = detail::name_value_pair::read(reader);
-                std::string name;
-                std::string value;
+	void _read_parameters(io::reader& reader)
+	{
+		try {
+			while (true) {
+				auto pair = detail::name_value_pair::read(reader);
+				std::string name;
+				std::string value;
 
-                name.resize(pair.name_length);
-                reader.read(&*name.begin(), pair.name_length);
+				name.resize(pair.name_length);
+				reader.read(&*name.begin(), pair.name_length);
 
-                value.resize(pair.value_length);
-                reader.read(&*value.begin(), pair.value_length);
+				value.resize(pair.value_length);
+				reader.read(&*value.begin(), pair.value_length);
 
-                FAST_CGI_LOG(DEBUG, "read parameter: {}={}", name, value);
+				FAST_CGI_LOG(DEBUG, "read parameter: {}={}", name, value);
 
-                _parameters[std::move(name)].swap(value);
-            }
-        } catch (const exception::io_exception& e) {
-        }
-    }
+				_parameters[std::move(name)].swap(value);
+			}
+		} catch (const exception::io_exception& e) {
+		}
+	}
 };
 
 } // namespace fast_cgi
