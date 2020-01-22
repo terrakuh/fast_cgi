@@ -4,6 +4,7 @@
 
 #if defined(FAST_CGI_ENABLE_LOGGING)
 #    define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
+#    define FAST_CGI_LOGGER_NAME "@FAST_CGI_LOGGER_NAME@"
 #    include <iostream>
 #    include <mutex>
 #    include <spdlog/spdlog.h>
@@ -49,8 +50,19 @@ inline void log(const char* func, const char* level, const char* msg, Ts&&... ts
     fmt::print("[{:<15} | {:>8}] {}\n", func, level, fmt::format(msg, std::forward<Ts>(ts)...));
 }
 
-#    define FAST_CGI_LOGGER_NAME "@FAST_CGI_LOGGER_NAME@"
-#    define FAST_CGI_LOG(level, ...) SPDLOG_LOGGER_##level(spdlog::get(FAST_CGI_LOGGER_NAME), __VA_ARGS__)
+namespace fast_cgi
+{
+
+inline std::shared_ptr<spdlog::logger> get_default_logger()
+{
+    static std::shared_ptr<spdlog::logger> logger(spdlog::stdout_color_mt(FAST_CGI_LOGGER_NAME));
+
+    return logger;
+}
+
+}
+
+#    define FAST_CGI_LOG(level, ...) SPDLOG_LOGGER_##level(get_default_logger(), __VA_ARGS__)
 #else
 #    define FAST_CGI_LOG(...) static_cast<void>(0)
 #endif
