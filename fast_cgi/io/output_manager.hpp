@@ -25,7 +25,7 @@ public:
     output_manager(const std::shared_ptr<connection>& connection, const std::shared_ptr<allocator>& allocator)
         : _alive(true), _writer(connection), _thread(&output_manager::_run, this), _buffer_manager(1024, allocator)
     {
-        LOG(TRACE, "output manager thread started");
+        FAST_CGI_LOG(TRACE, "output manager thread started");
     }
     ~output_manager()
     {
@@ -37,7 +37,7 @@ public:
         // wait
         _thread.join();
 
-        LOG(TRACE, "output manager thread terminated");
+        FAST_CGI_LOG(TRACE, "output manager thread terminated");
     }
     class buffer_manager& buffer_manager() noexcept
     {
@@ -51,7 +51,7 @@ public:
      */
     std::shared_ptr<std::atomic_bool> add(task_type&& task)
     {
-        LOG(DEBUG, "adding output task");
+        FAST_CGI_LOG(DEBUG, "adding output task");
 
         std::lock_guard<std::mutex> lock(_mutex);
         std::shared_ptr<std::atomic_bool> ret(new std::atomic_bool(false));
@@ -96,15 +96,15 @@ private:
                 _queue.pop_front();
             }
 
-            LOG(TRACE, "executing writer task");
+            FAST_CGI_LOG(TRACE, "executing writer task");
 
             // execute task
             try {
                 task.first(_writer);
             } catch (const std::exception& e) {
-                LOG(CRITICAL, "failed to execute writer task ({})", e.what());
+                FAST_CGI_LOG(CRITICAL, "failed to execute writer task ({})", e.what());
             } catch (...) {
-                LOG(CRITICAL, "failed to execute writer task");
+                FAST_CGI_LOG(CRITICAL, "failed to execute writer task");
             }
 
             task.second->store(true, std::memory_order_release);

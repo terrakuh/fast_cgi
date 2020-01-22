@@ -171,7 +171,7 @@ public:
         std::unique_lock<std::mutex> lock(_mutex);
         page* ptr = nullptr;
 
-        LOG(TRACE, "waiting for intput, consumed={} written={} max={}", _consume_total, _write_total, _max_size);
+        FAST_CGI_LOG(TRACE, "waiting for intput, consumed={} written={} max={}", _consume_total, _write_total, _max_size);
 
         // reached end
         if (_consume_total >= _max_size) {
@@ -184,10 +184,10 @@ public:
                 return true;
             }
 
-            LOG(TRACE, "page count={}", _pages.size());
+            FAST_CGI_LOG(TRACE, "page count={}", _pages.size());
 
             for (auto& page : _pages) {
-                LOG(TRACE, "page: consumed={} written={} max={}", page.consumed, page.written, page.size);
+                FAST_CGI_LOG(TRACE, "page: consumed={} written={} max={}", page.consumed, page.written, page.size);
 
                 if (page.written > page.consumed) {
                     ptr = &page;

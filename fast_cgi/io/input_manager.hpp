@@ -49,7 +49,7 @@ private:
             // spin
             while (!self->_connection->in_available()) {
                 if (self->_buffer->interrupted()) {
-                    LOG(INFO, "buffer was interrupted; exiting input thread");
+                    FAST_CGI_LOG(INFO, "buffer was interrupted; exiting input thread");
 
                     return;
                 }
@@ -61,7 +61,7 @@ private:
             auto read = self->_connection->read(buffer, 1, sizeof(buffer));
 
             if (!read) {
-                LOG(INFO, "received nothing; exiting input thread");
+                FAST_CGI_LOG(INFO, "received nothing; exiting input thread");
 
                 break;
             }

@@ -41,7 +41,7 @@ public:
 
             _free_pages.push_back({ ptr, tracker });
         } else {
-            LOG(CRITICAL, "requesting freeing of unkown page: {}", page);
+            FAST_CGI_LOG(CRITICAL, "requesting freeing of unkown page: {}", page);
         }
     }
     void* new_page()

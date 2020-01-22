@@ -88,9 +88,9 @@ public:
         // need more
         while (size > 0) {
             if (_begin >= _end) {
-                LOG(TRACE, "waiting for input");
+                FAST_CGI_LOG(TRACE, "waiting for input");
                 auto buf = _buffer->wait_for_input();
-                LOG(TRACE, "got input {}", buf.second);
+                FAST_CGI_LOG(TRACE, "got input {}", buf.second);
 
                 // buffer is empty
                 if (!buf.second) {

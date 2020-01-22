@@ -56,7 +56,7 @@ private:
                 value.resize(pair.value_length);
                 reader.read(&*value.begin(), pair.value_length);
 
-                LOG(DEBUG, "read parameter: {}={}", name, value);
+                FAST_CGI_LOG(DEBUG, "read parameter: {}={}", name, value);
 
                 _parameters[std::move(name)].swap(value);
             }

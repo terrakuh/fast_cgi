@@ -39,7 +39,7 @@ public:
     void run()
     {
         _connector->run([this](std::shared_ptr<connection> conn) {
-            LOG(INFO, "accepted new connection; launching new thread");
+            FAST_CGI_LOG(INFO, "accepted new connection; launching new thread");
 
             _connections.push_back(std::thread(&protocol::_connection_thread, this, std::move(conn)));
         });
@@ -68,10 +68,10 @@ private:
         try {
             _input_handler(reader, output_manager);
         } catch (const exception::io_exception& e) {
-            LOG(INFO, "buffer closed ({})", e.what());
+            FAST_CGI_LOG(INFO, "buffer closed ({})", e.what());
         }
 
-        LOG(INFO, "connection thread terminating");
+        FAST_CGI_LOG(INFO, "connection thread terminating");
     }
     void _input_handler(const std::shared_ptr<io::reader>& reader,
                         const std::shared_ptr<io::output_manager>& output_manager)
@@ -81,12 +81,12 @@ private:
         while (!request_manager.should_terminate_connection()) {
             auto record = detail::record::read(*reader);
 
-            LOG(INFO, "received record: version={}, type={}, id={}, length={}, padding={}", record.version, record.type,
+            FAST_CGI_LOG(INFO, "received record: version={}, type={}, id={}, length={}, padding={}", record.version, record.type,
                 record.request_id, record.content_length, record.padding_length);
 
             // version mismatch
             if (record.version != _version) {
-                LOG(CRITICAL, "version mismatch (supported: {}|given: {})", _version, record.version);
+                FAST_CGI_LOG(CRITICAL, "version mismatch (supported: {}|given: {})", _version, record.version);
 
                 return;
             }
@@ -104,7 +104,7 @@ private:
                     break;
                 }
 
-                LOG(WARN, "skipping record because of unkown type {}", record.type);
+                FAST_CGI_LOG(WARN, "skipping record because of unkown type {}", record.type);
 
                 // ignore body
                 reader->skip(record.content_length);

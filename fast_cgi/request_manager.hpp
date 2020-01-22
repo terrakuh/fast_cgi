@@ -34,7 +34,7 @@ public:
     {
         for (auto& request : _requests) {
             if (request.second->handler_thread.joinable()) {
-                LOG(DEBUG, "joining request({}) thread", request.first);
+                FAST_CGI_LOG(DEBUG, "joining request({}) thread", request.first);
 
                 request.second->handler_thread.join();
             }
@@ -75,7 +75,7 @@ public:
             // ignore record
             if ((request && record.type == detail::TYPE::FCGI_BEGIN_REQUEST) ||
                 (!request && record.type != detail::TYPE::FCGI_BEGIN_REQUEST)) {
-                LOG(WARN, "ignoring record because of invalid type and request state (id: {})", record.request_id);
+                FAST_CGI_LOG(WARN, "ignoring record because of invalid type and request state (id: {})", record.request_id);
 
                 return false;
             }
@@ -149,7 +149,7 @@ private:
 
                 // buffer is full -> ignore
                 if (buf.second == 0) {
-                    LOG(WARN, "buffer is full...skipping {} bytes", length - sent);
+                    FAST_CGI_LOG(WARN, "buffer is full...skipping {} bytes", length - sent);
 
                     _reader->skip(length - sent);
 
@@ -170,7 +170,7 @@ private:
         {
             io::reader reader(request->params_buffer);
 
-            LOG(DEBUG, "reading all parameters");
+            FAST_CGI_LOG(DEBUG, "reading all parameters");
 
             request->params._read_parameters(reader);
 
@@ -180,7 +180,7 @@ private:
             try {
                 content_size = static_cast<std::size_t>(std::stoull(request->params["CONTENT_LENGTH"]));
             } catch (const std::exception& e) {
-                LOG(WARN, "failed to parse content length ({})", e.what());
+                FAST_CGI_LOG(WARN, "failed to parse content length ({})", e.what());
             }
 
             request->input_buffer->set_max(content_size);
@@ -204,7 +204,7 @@ private:
                 try {
                     content_size = static_cast<std::size_t>(std::stoull(request->params["FCGI_DATA_LENGTH"]));
                 } catch (const std::exception& e) {
-                    LOG(WARN, "failed to parse data content length ({})", e.what());
+                    FAST_CGI_LOG(WARN, "failed to parse data content length ({})", e.what());
                 }
 
                 request->data_buffer->set_max(content_size);
@@ -257,12 +257,12 @@ private:
         try {
             status = role->run();
         } catch (const std::exception& e) {
-            LOG(ERROR, "role executor threw an exception ({})", e.what());
+            FAST_CGI_LOG(ERROR, "role executor threw an exception ({})", e.what());
         } catch (...) {
-            LOG(ERROR, "role executor threw an exception");
+            FAST_CGI_LOG(ERROR, "role executor threw an exception");
         }
 
-        LOG(INFO, "role finished with status code={}", static_cast<detail::quadruple_type>(status));
+        FAST_CGI_LOG(INFO, "role finished with status code={}", static_cast<detail::quadruple_type>(status));
 
         // flush and finish all output streams
         output_stream.flush();
@@ -275,11 +275,11 @@ private:
                               detail::end_request{ static_cast<detail::quadruple_type>(status),
                                                    detail::PROTOCOL_STATUS::FCGI_REQUEST_COMPLETE });
 
-        LOG(INFO, "request {} finished; removing", request->id);
+        FAST_CGI_LOG(INFO, "request {} finished; removing", request->id);
 
         // trigger end and interrupt reading buffer
         if (request->close_connection) {
-            LOG(DEBUG, "terminating connection");
+            FAST_CGI_LOG(DEBUG, "terminating connection");
 
             _terminate_connection.store(true, std::memory_order_release);
             _reader->interrupt();
@@ -302,7 +302,7 @@ private:
             if (factory) {
                 auto role = factory();
 
-                LOG(INFO, "created role; launching request thread");
+                FAST_CGI_LOG(INFO, "created role; launching request thread");
 
                 // launch thread
                 request->handler_thread =
@@ -312,7 +312,7 @@ private:
             } // else fall through, because role is unimplemented
         }
         default: {
-            LOG(ERROR, "begin request record rejected because of unknown/unimplemented role {}", body.role);
+            FAST_CGI_LOG(ERROR, "begin request record rejected because of unknown/unimplemented role {}", body.role);
 
             // reject because role is unknown
             detail::record::write(detail::FCGI_VERSION_1, record.request_id, *output_manager,

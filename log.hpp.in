@@ -49,7 +49,8 @@ inline void log(const char* func, const char* level, const char* msg, Ts&&... ts
     fmt::print("[{:<15} | {:>8}] {}\n", func, level, fmt::format(msg, std::forward<Ts>(ts)...));
 }
 
-#    define LOG(level, ...) SPDLOG_##level(__VA_ARGS__)
+#    define FAST_CGI_LOGGER_NAME "@FAST_CGI_LOGGER_NAME@"
+#    define FAST_CGI_LOG(level, ...) SPDLOG_LOGGER_##level(spdlog::get(FAST_CGI_LOGGER_NAME), __VA_ARGS__)
 #else
-#    define LOG(...) ((void)0)
+#    define FAST_CGI_LOG(...) static_cast<void>(0)
 #endif
