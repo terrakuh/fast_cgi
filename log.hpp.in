@@ -69,7 +69,7 @@ inline std::shared_ptr<spdlog::logger> get_default_logger()
 
 } // namespace fast_cgi
 
-#	define FAST_CGI_LOG(level, ...) SPDLOG_LOGGER_##level(get_default_logger(), __VA_ARGS__)
+#	define FAST_CGI_LOG(level, ...) SPDLOG_LOGGER_##level(fast_cgi::get_default_logger(), __VA_ARGS__)
 #else
 #	define FAST_CGI_LOG(...) static_cast<void>(0)
 #endif
