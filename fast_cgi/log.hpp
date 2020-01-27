@@ -5,7 +5,7 @@
 #if defined(FAST_CGI_ENABLE_LOGGING)
 #	define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #	define FAST_CGI_LOGGER_NAME "fastcgi-default"
-#	define FAST_CGI_LOGGER_PATTERN "[%T:%e | %=5t | %-20s at %-3# (%-20!)] [%^%=8l%$]\n\t%v"
+#	define FAST_CGI_LOGGER_PATTERN "[%T.%e | %=5t | %-20s at %-3# (%-20!)] [%n: %^%8l%$]\n\t%v"
 #	include <iostream>
 #	include <mutex>
 #	include <spdlog/spdlog.h>

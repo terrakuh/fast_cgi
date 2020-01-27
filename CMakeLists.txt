@@ -21,10 +21,21 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/log.hpp.in"
 add_library("fast_cgi" INTERFACE)
 target_include_directories("fast_cgi"
 	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
-	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include"
 	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/Catch2/include")
 target_link_libraries("fast_cgi"
 	INTERFACE Threads::Threads)
+
+if(FAST_CGI_ENABLE_LOGGING)
+	find_package(spdlog)
+
+	if(spdlog_FOUND)
+		target_link_libraries(fast_cgi
+			INTERFACE spdlog::spdlog)
+	else()
+		target_include_directories(fast_cgi
+			INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include")
+	endif()
+endif()
 
 if(FAST_CGI_BUILD_EXAMPLES)
 	file(GLOB FAST_CGI_EXAMPLE_SOURCES
