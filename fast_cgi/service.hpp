@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_SERVICE_HPP_
+#define FAST_CGI_SERVICE_HPP_
 
 #include "connector.hpp"
 #include "detail/record.hpp"
@@ -43,3 +44,5 @@ private:
 };
 
 } // namespace fast_cgi
+
+#endif

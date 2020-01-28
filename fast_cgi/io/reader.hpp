@@ -1,7 +1,8 @@
-#pragma once
+#ifndef FAST_CGI_IO_READER_HPP_
+#define FAST_CGI_IO_READER_HPP_
 
 #include "../detail/config.hpp"
-#include "../exception/io_exception.hpp"
+#include "../exception/io_error.hpp"
 #include "../memory/buffer.hpp"
 
 #include <cstddef>
@@ -36,7 +37,7 @@ public:
 
 		// end reached
 		if (read(buffer, sizeof(T)) != sizeof(T)) {
-			throw exception::io_exception("buffer exhausted");
+			throw exception::io_error("buffer exhausted");
 		}
 
 		if (sizeof(T) == 1) {
@@ -60,3 +61,5 @@ private:
 
 } // namespace io
 } // namespace fast_cgi
+
+#endif

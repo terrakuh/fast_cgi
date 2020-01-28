@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_DETAIL_RECORD_HPP_
+#define FAST_CGI_DETAIL_RECORD_HPP_
 
 #include "../io/output_manager.hpp"
 #include "../io/reader.hpp"
@@ -275,3 +276,5 @@ struct record
 
 } // namespace detail
 } // namespace fast_cgi
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_DETAIL_PARAMS_HPP_
+#define FAST_CGI_DETAIL_PARAMS_HPP_
 
 #include "../io/reader.hpp"
 #include "record.hpp"
@@ -35,3 +36,5 @@ private:
 
 } // namespace detail
 } // namespace fast_cgi
+
+#endif

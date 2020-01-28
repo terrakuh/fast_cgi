@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_DETAIL_REQUEST_HPP_
+#define FAST_CGI_DETAIL_REQUEST_HPP_
 
 #include "../io/output_manager.hpp"
 #include "../memory/buffer.hpp"
@@ -36,3 +37,5 @@ struct request
 
 } // namespace detail
 } // namespace fast_cgi
+
+#endif

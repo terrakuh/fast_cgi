@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_IO_INPUT_MANAGER_HPP_
+#define FAST_CGI_IO_INPUT_MANAGER_HPP_
 
 #include "../connection.hpp"
 #include "../memory/allocator.hpp"
@@ -26,3 +27,5 @@ private:
 
 } // namespace io
 } // namespace fast_cgi
+
+#endif

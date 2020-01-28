@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_CONNECTOR_HPP_
+#define FAST_CGI_CONNECTOR_HPP_
 
 #include "connection.hpp"
 
@@ -23,3 +24,5 @@ public:
 };
 
 } // namespace fast_cgi
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_LOG_HPP_
+#define FAST_CGI_LOG_HPP_
 
 #cmakedefine FAST_CGI_ENABLE_LOGGING
 
@@ -72,4 +73,6 @@ inline std::shared_ptr<spdlog::logger> get_default_logger()
 #	define FAST_CGI_LOG(level, ...) SPDLOG_LOGGER_##level(fast_cgi::get_default_logger(), __VA_ARGS__)
 #else
 #	define FAST_CGI_LOG(...) static_cast<void>(0)
+#endif
+
 #endif

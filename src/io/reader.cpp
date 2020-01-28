@@ -24,7 +24,7 @@ detail::quadruple_type reader::read_variable()
 	detail::quadruple_type value = 0;
 
 	if (read(buffer, 1) != 1) {
-		throw exception::io_exception("buffer exhausted");
+		throw exception::io_error("buffer exhausted");
 	}
 
 	value = buffer[0];
@@ -32,7 +32,7 @@ detail::quadruple_type reader::read_variable()
 	if (value & 0x80) {
 		// read more
 		if (read(buffer + 1, sizeof(buffer) - 1) != sizeof(buffer) - 1) {
-			throw exception::io_exception("buffer exhausted");
+			throw exception::io_error("buffer exhausted");
 		}
 
 		value = ((value & 0x7f) << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3];

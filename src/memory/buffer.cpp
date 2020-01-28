@@ -1,4 +1,4 @@
-#include "fast_cgi/exception/interrupted_exception.hpp"
+#include "fast_cgi/exception/interrupted_error.hpp"
 #include "fast_cgi/log.hpp"
 #include "fast_cgi/memory/buffer.hpp"
 
@@ -119,7 +119,7 @@ void buffer::wait_for_all_input()
 	_waiter.wait(lock, [this] { return _write_total >= _max_size || _interrupted; });
 
 	if (_interrupted) {
-		throw exception::interrupted_exception("waiting was interrupted");
+		throw exception::interrupted_error("waiting was interrupted");
 	}
 }
 
@@ -133,7 +133,7 @@ std::pair<void*, std::size_t> buffer::wait_for_input()
 	// wait for input
 	_waiter.wait(lock, [this, &ptr] {
 		if (_interrupted) {
-			throw exception::interrupted_exception("waiting was interrupted");
+			throw exception::interrupted_error("waiting was interrupted");
 		} // reached end
 		else if (_consume_total >= _max_size) {
 			return true;

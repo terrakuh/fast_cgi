@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_CONNECTION_HPP_
+#define FAST_CGI_CONNECTION_HPP_
 
 #include <cstddef>
 #include <mutex>
@@ -76,3 +77,5 @@ private:
 };
 
 } // namespace fast_cgi
+
+#endif

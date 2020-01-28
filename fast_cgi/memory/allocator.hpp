@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_MEMORY_ALLOCATOR_HPP_
+#define FAST_CGI_MEMORY_ALLOCATOR_HPP_
 
 #include <cstddef>
 
@@ -20,3 +21,5 @@ public:
 
 } // namespace memory
 } // namespace fast_cgi
+
+#endif

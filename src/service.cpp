@@ -34,7 +34,7 @@ void service::_connection_thread(std::shared_ptr<connection> connection)
 
 	try {
 		_input_handler(reader, output_manager);
-	} catch (const exception::io_exception& e) {
+	} catch (const exception::io_error& e) {
 		FAST_CGI_LOG(INFO, "buffer closed ({})", e.what());
 	}
 

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_IO_WRITER_HPP_
+#define FAST_CGI_IO_WRITER_HPP_
 
 #include "../connection.hpp"
 #include "../detail/config.hpp"
@@ -82,3 +83,5 @@ private:
 
 } // namespace io
 } // namespace fast_cgi
+
+#endif

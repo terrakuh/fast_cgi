@@ -1,8 +1,9 @@
-#pragma once
+#ifndef FASST_CGI_ROLE_HPP_
+#define FASST_CGI_ROLE_HPP_
 
 #include "detail/config.hpp"
 #include "detail/params.hpp"
-#include "exception/invalid_role_exception.hpp"
+#include "exception/invalid_role_error.hpp"
 #include "io/byte_stream.hpp"
 
 #include <atomic>
@@ -77,7 +78,7 @@ public:
 	io::byte_istream& input()
 	{
 		if (!_input_stream) {
-			throw exception::invalid_role_exception("this role wasn't initialized as responder or filter");
+			throw exception::invalid_role_error("this role wasn't initialized as responder or filter");
 		}
 
 		return *_input_stream;
@@ -102,7 +103,7 @@ public:
 	io::byte_istream& data()
 	{
 		if (!_data_stream) {
-			throw exception::invalid_role_exception("this role wasn't initialized as filter");
+			throw exception::invalid_role_error("this role wasn't initialized as filter");
 		}
 
 		return *_data_stream;
@@ -115,3 +116,5 @@ private:
 };
 
 } // namespace fast_cgi
+
+#endif

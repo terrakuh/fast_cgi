@@ -1,5 +1,5 @@
 #include "fast_cgi/detail/params.hpp"
-#include "fast_cgi/exception/io_exception.hpp"
+#include "fast_cgi/exception/io_error.hpp"
 #include "fast_cgi/log.hpp"
 
 namespace fast_cgi {
@@ -43,7 +43,7 @@ void params::_read_parameters(io::reader& reader)
 
 			_parameters[std::move(name)].swap(value);
 		}
-	} catch (const exception::io_exception& e) {
+	} catch (const exception::io_error& e) {
 	}
 }
 

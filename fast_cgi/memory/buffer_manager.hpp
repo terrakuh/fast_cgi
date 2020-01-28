@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_MEMORY_BUFFER_MANAGER_HPP_
+#define FAST_CGI_MEMORY_BUFFER_MANAGER_HPP_
 
 #include "allocator.hpp"
 
@@ -31,3 +32,5 @@ private:
 
 } // namespace memory
 } // namespace fast_cgi
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_DETAIL_REQUEST_MANAGER_HPP_
+#define FAST_CGI_DETAIL_REQUEST_MANAGER_HPP_
 
 #include "../io/output_manager.hpp"
 #include "../io/reader.hpp"
@@ -48,3 +49,5 @@ private:
 
 } // namespace detail
 } // namespace fast_cgi
+
+#endif

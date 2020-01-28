@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_IO_BUFFER_STREAM_HPP_
+#define FAST_CGI_IO_BUFFER_STREAM_HPP_
 
 #include "../memory/buffer.hpp"
 
@@ -47,3 +48,5 @@ private:
 
 } // namespace io
 } // namespace fast_cgi
+
+#endif
