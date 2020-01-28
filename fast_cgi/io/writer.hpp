@@ -76,7 +76,7 @@ private:
 
 	std::shared_ptr<connection> _connection;
 
-	writer(const std::shared_ptr<connection>& connection) : _connection(connection)
+	writer(std::shared_ptr<connection> connection) : _connection(std::move(connection))
 	{}
 };
 

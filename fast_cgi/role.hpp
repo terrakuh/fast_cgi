@@ -1,15 +1,20 @@
 #pragma once
 
 #include "detail/config.hpp"
+#include "detail/params.hpp"
 #include "exception/invalid_role_exception.hpp"
 #include "io/byte_stream.hpp"
-#include "params.hpp"
 
 #include <atomic>
 #include <memory>
 #include <type_traits>
 
 namespace fast_cgi {
+namespace detail {
+
+class request_manager;
+
+}
 
 class role
 {
@@ -40,7 +45,7 @@ public:
 
 	  @returns a reference to the param container
 	 */
-	class params& params() noexcept
+	detail::params& params() noexcept
 	{
 		return *_params;
 	}
@@ -54,10 +59,10 @@ public:
 	}
 
 private:
-	friend class request_manager;
+	friend detail::request_manager;
 
 	std::atomic_bool* _cancelled;
-	class params* _params;
+	detail::params* _params;
 	io::byte_ostream* _output_stream;
 	io::byte_ostream* _error_stream;
 };
@@ -79,7 +84,7 @@ public:
 	}
 
 private:
-	friend class request_manager;
+	friend detail::request_manager;
 
 	io::byte_istream* _input_stream;
 };
@@ -104,7 +109,7 @@ public:
 	}
 
 private:
-	friend class request_manager;
+	friend detail::request_manager;
 
 	io::byte_istream* _data_stream;
 };

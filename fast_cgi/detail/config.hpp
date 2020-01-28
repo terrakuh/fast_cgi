@@ -1,4 +1,5 @@
-#pragma once
+#ifndef FAST_CGI_DETAIL_CONFIG_HPP_
+#define FAST_CGI_DETAIL_CONFIG_HPP_
 
 #include <cstdint>
 
@@ -11,3 +12,5 @@ typedef std::uint32_t quadruple_type;
 
 } // namespace detail
 } // namespace fast_cgi
+
+#endif

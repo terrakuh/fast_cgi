@@ -3,6 +3,7 @@
 #include <cstddef>
 
 namespace fast_cgi {
+namespace memory {
 
 class allocator
 {
@@ -17,4 +18,5 @@ public:
 	virtual void deallocate(void* ptr, std::size_t size)        = 0;
 };
 
+} // namespace memory
 } // namespace fast_cgi

@@ -2,8 +2,9 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fast_cgi/fast_cgi.hpp>
-#include <fast_cgi/simple_allocator.hpp>
+#include <fast_cgi/memory/simple_allocator.hpp>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -56,7 +57,7 @@ public:
 		delete[] buffer;
 		::close(s);
 		s = 0;
-		FAST_CGI_LOG(DEBUG, "killing connection");
+		//FAST_CGI_LOG(DEBUG, "killing connection");
 	}
 	virtual size_type do_in_available() override
 	{
@@ -67,7 +68,7 @@ public:
 	virtual void do_flush() override
 	{
 		if (ptr - buffer) {
-			FAST_CGI_LOG(DEBUG, "flushing {}", buff{ buffer, std::size_t(ptr - buffer) });
+			//FAST_CGI_LOG(DEBUG, "flushing {}", buff{ buffer, std::size_t(ptr - buffer) });
 
 			send(s, buffer, ptr - buffer, 0);
 			ptr = buffer;
@@ -78,7 +79,7 @@ public:
 		auto t = recv(s, (char*) buffer, at_most, 0);
 
 		if (t < 0) {
-			FAST_CGI_LOG(CRITICAL, "faile0 to receive d {}", t);
+			//FAST_CGI_LOG(CRITICAL, "faile0 to receive d {}", t);
 		}
 
 		return t;
@@ -133,13 +134,11 @@ public:
 
 int main()
 {
-	fast_cgi::get_default_logger()->set_level(spdlog::level::trace);
-
 	// create server
-	fast_cgi::protocol protocol(std::make_shared<con>(), std::make_shared<fast_cgi::simple_allocator>());
+	fast_cgi::service service(std::make_shared<con>(), std::make_shared<fast_cgi::memory::simple_allocator>());
 
-	protocol.set_role<responder>();
+	service.set_role<responder>();
 
-	protocol.run();
-	protocol.join();
+	service.run();
+	service.join();
 }

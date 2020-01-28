@@ -18,22 +18,36 @@ find_package(Threads REQUIRED)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/log.hpp.in"
 	"${CMAKE_CURRENT_SOURCE_DIR}/fast_cgi/log.hpp")
 
-add_library("fast_cgi" INTERFACE)
-target_include_directories("fast_cgi"
-	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
-	INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/Catch2/include")
-target_link_libraries("fast_cgi"
-	INTERFACE Threads::Threads)
+# set build type
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type." FORCE)
+endif()
+
+# add library
+file(GLOB_RECURSE FAST_CGI_SOURCE_FILES
+	"${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+
+add_library(fast_cgi ${FAST_CGI_SOURCE_FILES})
+target_include_directories(fast_cgi
+	PUBLIC
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+		$<INSTALL_INTERFACE:include>)
+target_link_libraries(fast_cgi
+	PRIVATE Threads::Threads)
 
 if(FAST_CGI_ENABLE_LOGGING)
-	find_package(spdlog)
+	find_package(spdlog QUIET)
 
 	if(spdlog_FOUND)
+		message(STATUS "Found spdlog at ${spdlog_DIR}")
+
 		target_link_libraries(fast_cgi
-			INTERFACE spdlog::spdlog)
+			PRIATE spdlog::spdlog)
 	else()
+		message(STATUS "spdlog not found. Using header-only version from ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include.")
+
 		target_include_directories(fast_cgi
-			INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include")
+			PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include")
 	endif()
 endif()
 
@@ -50,8 +64,14 @@ if(FAST_CGI_BUILD_EXAMPLES)
 	endforeach()
 endif()
 
-if(FAST_CGI_BUILD_TESTS)
-	include(CTest)
-	enable_testing()
-
-endif()
+install(TARGETS fast_cgi
+	EXPORT fast_cgi
+	ARCHIVE
+		DESTINATION "lib"
+	LIBRARY
+		DESTINATION "lib")
+install(DIRECTORY "fast_cgi"
+	DESTINATION "include")
+install(EXPORT fast_cgi
+	DESTINATION "share/cmake"
+	NAMESPACE fast_cgi::)

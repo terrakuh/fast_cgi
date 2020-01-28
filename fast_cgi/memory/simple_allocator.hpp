@@ -7,6 +7,7 @@
 #include <cstdlib>
 
 namespace fast_cgi {
+namespace memory {
 
 class simple_allocator : public allocator
 {
@@ -23,4 +24,5 @@ public:
 	}
 };
 
+} // namespace memory
 } // namespace fast_cgi
