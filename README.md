@@ -1,8 +1,6 @@
 # fast_cgi
 
 - [Installation](#installation)
-  - [With CMake](#with-cmake)
-  - [Without CMake](#without-cmake)
 - [Cheatsheet](#cheatsheet)
   - [Roles](#roles)
     - [Responder (`fast_cgi::responder`)](#responder-fast_cgiresponder)
@@ -12,8 +10,6 @@
 - [License](#license)
 
 ## Installation
-
-### With CMake
 
 Requirements:
 
@@ -38,10 +34,6 @@ cmake ..
 cmake --build .
 cmake --build . --target install
 ```
-
-### Without CMake
-
-Just copy the *fast_cgi* folder with all the *.hpp* files to your project or set it as include directory. If logging is enabled (logging can be disabled by manually deleting the macro `FAST_CGI_ENABLE_LOGGING` in `log.hpp`) *spdlog* is also required.
 
 ## Cheatsheet
 
