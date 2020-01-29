@@ -42,7 +42,7 @@ if(FAST_CGI_ENABLE_LOGGING)
 		message(STATUS "Found spdlog at ${spdlog_DIR}")
 
 		target_link_libraries(fast_cgi
-			PRIATE spdlog::spdlog)
+			PRIVATE spdlog::spdlog)
 	else()
 		message(STATUS "spdlog not found. Using header-only version from ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/spdlog/include.")
 
