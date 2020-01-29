@@ -74,5 +74,4 @@ install(DIRECTORY "fast_cgi"
 	DESTINATION "include")
 install(EXPORT fast_cgi
 	DESTINATION "lib/cmake/fast_cgi"
-	FILE "fast_cgi-config.cmake"
-	NAMESPACE fast_cgi::)
+	FILE "fast_cgi-config.cmake")
