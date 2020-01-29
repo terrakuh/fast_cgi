@@ -16,10 +16,17 @@ class params
 public:
 	typedef std::map<std::string, std::string> map_type;
 
-	constexpr static auto request_uri    = "REQUEST_URI";
-	constexpr static auto query_string   = "QUERY_STRING";
-	constexpr static auto content_length = "CONTENT_LENGTH";
-	constexpr static auto content_type   = "CONTENT_TYPE";
+	constexpr static auto request_uri     = "REQUEST_URI";
+	constexpr static auto query_string    = "QUERY_STRING";
+	constexpr static auto content_length  = "CONTENT_LENGTH";
+	constexpr static auto content_type    = "CONTENT_TYPE";
+	constexpr static auto document_uri    = "DOCUMENT_URI";
+	constexpr static auto document_root   = "DOCUMENT_ROOT";
+	constexpr static auto remote_addr     = "REMOTE_ADDR";
+	constexpr static auto remote_port     = "REMOTE_PORT";
+	constexpr static auto script_filename = "SCRIPTE_FILENAME";
+	constexpr static auto http_host       = "HTTP_HOST";
+	constexpr static auto request_method  = "REQUEST_METHOD";
 
 	map_type::const_iterator begin() const;
 	map_type::const_iterator end() const;
