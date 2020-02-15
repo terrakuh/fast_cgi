@@ -49,7 +49,7 @@ A detailed definition of the following roles can be found [here](https://fastcgi
 
 #### Responder (`fast_cgi::responder`)
 
-A responder additionally receives optinal input by `input()`. This role has the same purpose as simple CGI/1.1 programs (this is probably what you want). A simple *Hello, Wolrd* might look like this:
+A responder additionally receives optinal input by `input()`. This role has the same purpose as simple CGI/1.1 programs (this is probably what you want). A simple *Hello, World* might look like this:
 
 ```cpp
 #include <fast_cgi/fast_cgi.hpp>
@@ -57,7 +57,7 @@ A responder additionally receives optinal input by `input()`. This role has the 
 class hello_world : public fast_cgi::responder
 {
 public:
-    virtual status_code_type run() override
+    status_code_type run() override
     {
         using namespace fast_cgi::manipulator;
 
