@@ -1,15 +1,19 @@
 # fast_cgi
 
 - [Installation](#installation)
+  - [Building](#building)
+  - [Using in Projects](#using-in-projects)
 - [Cheatsheet](#cheatsheet)
   - [Roles](#roles)
-    - [Responder (`fast_cgi::responder`)](#responder-fast_cgiresponder)
-    - [Filter (`fast_cgi::filter`)](#filter-fast_cgifilter)
-    - [Authorizer (`fast_cgi::authorizer`)](#authorizer-fast_cgiauthorizer)
+    - [Responder (`fast_cgi::responder`)](#responder-fastcgiresponder)
+    - [Filter (`fast_cgi::filter`)](#filter-fastcgifilter)
+    - [Authorizer (`fast_cgi::authorizer`)](#authorizer-fastcgiauthorizer)
   - [Parameters](#parameters)
 - [License](#license)
 
 ## Installation
+
+### Building
 
 Requirements:
 
@@ -17,7 +21,7 @@ Requirements:
 - Git
 - C++11 compiler
 
-```cmd
+```sh
 git clone https://github.com/terrakuh/fast_cgi.git
 cd fast_cgi
 git submodule init
@@ -33,6 +37,24 @@ cmake ..
 
 cmake --build .
 cmake --build . --target install
+```
+
+### Using in Projects
+
+After installing the library:
+
+```cmake
+find_package(fast_cgi REQUIRED)
+
+target_link_libraries(myapp PUBLIC fast_cgi)
+```
+
+Or as a subdirectory:
+
+```cmake
+add_subdirectory("dependencies/fast_cgi")
+
+target_link_libraries(myapp PUBLIC fast_cgi)
 ```
 
 ## Cheatsheet
@@ -66,8 +88,8 @@ public:
                  << "<h1>" << "Hello, World!" << "</h1><br/><br/>"
                  << "<span>Here are all parameters:</span><br/>";
 
-        // Print all parameters
-        for (auto& i : params()) {
+        // print all parameters
+        for (const auto& i : params()) {
             output() << i.first << "=" << i.second << "<br/>";
         }
         
@@ -75,6 +97,7 @@ public:
         output() << input().rdbuf();
         output() << "</body></html>"
 
+        // just like exiting your program
         return 0;
     }
 };
@@ -95,7 +118,7 @@ See [here](https://fastcgi-archives.github.io/FastCGI_Specification.html#S6.3).
 Parameters can be iterated like:
 
 ```cpp
-for (auto& parameter : params()) {
+for (const auto& parameter : params()) {
     std::cout << parameter.first << "=" << parameter.second << "\n";
 }
 ```
@@ -103,15 +126,15 @@ for (auto& parameter : params()) {
 Getting a parameter (this example may throw an `std::out_of_range` exception if the key does not exist):
 
 ```cpp
-auto& value = params()["REQUEST_URI"];
+const auto& value = params()["REQUEST_URI"];
 // or
-auto& value = params("REQUEST_URI");
+const auto& value = params("REQUEST_URI");
 ```
 
 Checking if a parameter is available:
 
 ```cpp
-auto has_uri = params().has("REQUEST_URI");
+const auto has_uri = params().has("REQUEST_URI");
 ```
 
 ## License
