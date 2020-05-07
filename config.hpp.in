@@ -10,7 +10,7 @@ typedef std::uint8_t single_type;
 typedef std::uint16_t double_type;
 typedef std::uint32_t quadruple_type;
 
-constexpr auto default_buffer_size = 1024;
+constexpr auto default_buffer_size = ${FAST_CGI_DEFAULT_BUFFER_SIZE};
 
 } // namespace detail
 } // namespace fast_cgi

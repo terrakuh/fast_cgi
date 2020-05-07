@@ -9,12 +9,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(FAST_CGI_LOGGER_NAME "fastcgi-default" CACHE STRING "FastCGI default logger name. Only used if logging is enabled.")
 set(FAST_CGI_LOGGER_PATTERN "[%T.%e | %=5t | %-20s at %-3# (%-20!)] [%n: %^%8l%$]\\n\\t%v" CACHE STRING "FastCGI logging pattern. Only used if logging is enabled.")
+set(FAST_CGI_DEFAULT_BUFFER_SIZE "1024" CACHE STRING "The default maximum buffer size of the buffers for each request.")
 option(FAST_CGI_BUILD_EXAMPLES "Build examples." ON)
 option(FAST_CGI_ENABLE_LOGGING "Enable logging." ON)
 option(FAST_CGI_BUILD_TESTS "Build tests." ON)
 
 find_package(Threads REQUIRED)
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/config.hpp.in"
+	"${CMAKE_CURRENT_SOURCE_DIR/fast_cgi/detail/config.hpp}")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/log.hpp.in"
 	"${CMAKE_CURRENT_SOURCE_DIR}/fast_cgi/log.hpp")
 
