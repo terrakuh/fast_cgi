@@ -15,11 +15,11 @@ public:
 
 	virtual ~connector() = default;
 	/**
-	 Accepts incoming connections.
-
-	 @acceptor the callback that takes one connection
-	 @throws may throw anything
-	*/
+	 * Accepts incoming connections.
+	 *
+	 * @acceptor the callback that takes one connection
+	 * @throws may throw anything
+	 */
 	virtual void run(const acceptor_type& acceptor) = 0;
 };
 

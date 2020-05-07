@@ -37,10 +37,10 @@ private:
 	std::array<std::function<std::unique_ptr<role>()>, 3> _role_factories;
 
 	/**
-	  Forwards *length* bytes to *buffer* read by *reader*. If *length* is zero the buffer is closed.
-
-	  @param length the length of the forward content
-	  @param[in] buffer the buffer
+	 * Forwards *length* bytes to *buffer* read by *reader*. If *length* is zero the buffer is closed.
+	 *
+	 * @param length the length of the forward content
+	 * @param[in] buffer the buffer
 	 */
 	void _forward_to_buffer(detail::double_type length, memory::buffer& buffer);
 	void _request_hanlder(std::unique_ptr<role> role, std::shared_ptr<request> request);

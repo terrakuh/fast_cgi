@@ -23,19 +23,19 @@ public:
 		writer(writer&& move);
 		~writer();
 		/**
-		  Returns a buffer where the user can write his contents. The returned buffer size may be smaller than the
-		  desired size.
-
-		  @param desired the desired size of the buffer
-		  @returns the buffer pointer and its size; if `size==0` the buffer is full or the token has been closed
+		 * Returns a buffer where the user can write his contents. The returned buffer size may be smaller than the
+		 * desired size.
+		 *
+		 * @param desired the desired size of the buffer
+		 * @returns the buffer pointer and its size; if `size==0` the buffer is full or the token has been closed
 		 */
 		std::pair<void*, std::size_t> request_buffer(std::size_t desired);
 		/**
-		  Closes this token. Calling this function on a closed token has no effect.
+		 * Closes this token. Calling this function on a closed token has no effect.
 		 */
 		void close() noexcept;
 		/**
-		  Checks whether this token has been closed.
+		 * Checks whether this token has been closed.
 		 */
 		bool closed() noexcept;
 
@@ -49,10 +49,10 @@ public:
 	};
 
 	/**
-	  Creates a new buffer with the given max size.
-
-	  @param allocator the memory allocator
-	  @param max_size the maximum allowed buffer size
+	 * Creates a new buffer with the given max size.
+	 *
+	 * @param allocator the memory allocator
+	 * @param max_size the maximum allowed buffer size
 	 */
 	buffer(std::shared_ptr<allocator> allocator, std::size_t max_size);
 	buffer(const buffer& copy) = delete;
@@ -62,29 +62,30 @@ public:
 	bool interrupted();
 	void set_max(std::size_t max);
 	/**
-	  Blocks until the buffer has reached max size.
-
-	  @throws exception::interrupted_exception if reading was interrupted
+	 * Blocks until the buffer has reached max size.
+	 *
+	 * @throw exception::interrupted_exception if reading was interrupted
 	 */
 	void wait_for_all_input();
 	/**
-	  Waits until new input is available. Every input returned by previous calls to this function are invalidated.
-
-	  @returns the new input or `{nullptr, 0}` if no more input is available
-	  @throws exception::interrupted_exception if reading was interrupted
+	 * Waits until new input is available. Every input returned by previous calls to this function are invalidated.
+	 *
+	 * @returns the new input or `{nullptr, 0}` if no more input is available
+	 * @throw exception::interrupted_exception if reading was interrupted
 	 */
 	std::pair<void*, std::size_t> wait_for_input();
 	/**
-	  Closes the buffer and prevents any more writes. Calling this function on a closed buffer has no effect.
+	 * Closes the buffer and prevents any more writes. Calling this function on a closed buffer has no effect.
 	 */
 	void close();
 	bool output_closed() noexcept;
 	bool input_closed() noexcept;
 	/**
-	  Locks the buffer and starts writing. The lock is released when the returned token is destroyed or closed. Sharing
-	  a token between threads results in undefined behavior. This token may **not** exist longer than this instance.
-
-	  @returns the writer token
+	 *  Locks the buffer and starts writing. The lock is released when the returned token is destroyed or closed.
+	 * Sharing a token between threads results in undefined behavior. This token may **not** exist longer than this
+	 * instance.
+	 *
+	 *  @returns the writer token
 	 */
 	writer begin_writing();
 

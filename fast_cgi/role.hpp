@@ -30,7 +30,7 @@ public:
 	}
 	virtual ~role() = default;
 	/**
-	  Executes this role
+	 * Executes this role
 	 */
 	virtual status_code_type run() = 0;
 	bool is_cancelled() const volatile noexcept
@@ -42,9 +42,9 @@ public:
 		return (*_params)[key];
 	}
 	/**
-	  Returns the associated parameters given by the web server.
-
-	  @returns a reference to the param container
+	 * Returns the associated parameters given by the web server.
+	 *
+	 * @returns a reference to the param container
 	 */
 	detail::params& params() noexcept
 	{
