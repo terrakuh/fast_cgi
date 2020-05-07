@@ -28,8 +28,8 @@ public:
 	constexpr static auto http_host       = "HTTP_HOST";
 	constexpr static auto request_method  = "REQUEST_METHOD";
 
-	map_type::const_iterator begin() const;
-	map_type::const_iterator end() const;
+	map_type::const_iterator begin() const noexcept;
+	map_type::const_iterator end() const noexcept;
 	bool has(const std::string& key) const;
 	const std::string& operator[](const std::string& key) const;
 

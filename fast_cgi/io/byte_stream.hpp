@@ -24,7 +24,7 @@ public:
 	input_streambuf(std::shared_ptr<memory::buffer> buffer);
 
 protected:
-	virtual int_type underflow() override;
+	int_type underflow() override;
 
 private:
 	std::shared_ptr<memory::buffer> _buffer;
@@ -38,9 +38,9 @@ public:
 	output_streambuf(writer_type writer);
 
 protected:
-	virtual std::streamsize xsputn(const char_type* s, std::streamsize count) override;
-	virtual int sync() override;
-	virtual int_type overflow(int_type c = traits_type::eof()) override;
+	std::streamsize xsputn(const char_type* s, std::streamsize count) override;
+	int sync() override;
+	int_type overflow(int_type c = traits_type::eof()) override;
 
 private:
 	writer_type _writer;

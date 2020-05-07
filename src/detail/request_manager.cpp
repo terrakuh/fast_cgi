@@ -1,5 +1,6 @@
-#include "fast_cgi/detail/params.hpp"
 #include "fast_cgi/detail/request_manager.hpp"
+
+#include "fast_cgi/detail/params.hpp"
 #include "fast_cgi/log.hpp"
 
 namespace fast_cgi {
@@ -7,8 +8,9 @@ namespace detail {
 
 request_manager::request_manager(std::shared_ptr<memory::allocator> allocator, std::shared_ptr<io::reader> reader,
                                  std::array<std::function<std::unique_ptr<role>()>, 3> role_factories)
-    : _terminate_connection(false), _allocator(std::move(allocator)), _reader(std::move(reader)),
-      _role_factories(std::move(role_factories))
+    : _terminate_connection{ false }, _allocator{ std::move(allocator) }, _reader{ std::move(reader) }, _role_factories{
+	      std::move(role_factories)
+      }
 {}
 
 request_manager::~request_manager()
@@ -22,7 +24,7 @@ request_manager::~request_manager()
 	}
 }
 
-bool request_manager::should_terminate_connection() const
+bool request_manager::should_terminate_connection() const noexcept
 {
 	if (!_terminate_connection.load(std::memory_order_acquire)) {
 		return false;
@@ -78,7 +80,6 @@ bool request_manager::handle_request(std::shared_ptr<io::output_manager> output_
 	}
 	case detail::TYPE::FCGI_ABORT_REQUEST: {
 		_reader->skip(record.content_length);
-
 		request->cancelled.store(true, std::memory_order_release);
 
 		break;
@@ -113,7 +114,7 @@ void request_manager::_forward_to_buffer(detail::double_type length, memory::buf
 		auto token = buffer.begin_writing();
 
 		for (detail::double_type sent = 0; sent < length;) {
-			auto buf = token.request_buffer(length - sent);
+			const auto buf = token.request_buffer(length - sent);
 
 			// buffer is full -> ignore
 			if (buf.second == 0) {
@@ -131,7 +132,7 @@ void request_manager::_forward_to_buffer(detail::double_type length, memory::buf
 	}
 }
 
-void request_manager::_request_hanlder(std::unique_ptr<role> role, std::shared_ptr<request> request)
+void request_manager::_request_handler(std::unique_ptr<role> role, std::shared_ptr<request> request)
 {
 	auto version = detail::VERSION::FCGI_VERSION_1;
 
@@ -257,9 +258,9 @@ void request_manager::_request_hanlder(std::unique_ptr<role> role, std::shared_p
 
 void request_manager::_begin_request(std::shared_ptr<io::output_manager> output_manager, detail::record record)
 {
-	auto body    = detail::begin_request::read(*_reader);
-	auto request = std::make_shared<struct request>(record.request_id, body.role, std::move(output_manager),
-	                                                (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0, _allocator);
+	const auto body = detail::begin_request::read(*_reader);
+	auto request    = std::make_shared<struct request>(record.request_id, body.role, std::move(output_manager),
+                                                    (body.flags & detail::FLAGS::FCGI_KEEP_CONN) == 0, _allocator);
 
 	switch (body.role) {
 	case detail::ROLE::FCGI_AUTHORIZER:
@@ -273,7 +274,10 @@ void request_manager::_begin_request(std::shared_ptr<io::output_manager> output_
 			FAST_CGI_LOG(INFO, "created role; launching request thread");
 
 			// launch thread
-			request->handler_thread = std::thread(&request_manager::_request_hanlder, this, std::move(role), request);
+			request->handler_thread = std::thread(&request_manager::_request_handler, this, std::move(role), request);
+
+			// add request
+			_requests.insert({ record.request_id, std::move(request) });
 
 			break;
 		} // else fall through, because role is unimplemented
@@ -285,12 +289,9 @@ void request_manager::_begin_request(std::shared_ptr<io::output_manager> output_
 		detail::record::write(detail::FCGI_VERSION_1, record.request_id, *request->output_manager,
 		                      detail::end_request{ 0, detail::PROTOCOL_STATUS::FCGI_UNKNOWN_ROLE });
 
-		return;
+		break;
 	}
 	}
-
-	// add request
-	_requests.insert({ record.request_id, std::move(request) });
 }
 
 } // namespace detail
