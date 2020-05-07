@@ -59,7 +59,7 @@ public:
 protected:
 	connection(bool synchronize)
 	{
-		_mutex = synchronize ? new std::mutex() : nullptr;
+		_mutex = synchronize ? new std::mutex{} : nullptr;
 	}
 	connection(const connection& copy) = delete;
 	connection(connection&& move)

@@ -21,11 +21,29 @@ class service
 {
 public:
 	service(std::shared_ptr<connector> connector, std::shared_ptr<memory::allocator> allocator);
-	template<typename T>
-	typename std::enable_if<std::is_base_of<role, T>::value>::type set_role()
+	/**
+	 * Sets the given type as the default role handler for this service.
+	 *
+	 * @tparam Role the role type; must implement only one of: responder, authorizer or filter; this type must be
+	 * default constructible
+	 */
+	template<typename Role>
+	void set_role() noexcept
 	{
-		if (std::is_base_of<responder, T>::value) {
-			_role_factories[0] = [] { return std::unique_ptr<role>(new T()); };
+		// filter derives from responder
+		static_assert(static_cast<int>(std::is_base_of<responder, Role>::value) +
+		                      static_cast<int>(std::is_base_of<authorizer, Role>::value) ==
+		                  1,
+		              "the given role must be implement only one of: responder, authorizer or filter");
+
+		const auto factory = [] { return std::unique_ptr<role>(new Role{}); };
+
+		if (std::is_base_of<filter, Role>::value) {
+			_role_factories[2] = factory;
+		} else if (std::is_base_of<authorizer, Role>::value) {
+			_role_factories[1] = factory;
+		} else {
+			_role_factories[0] = factory;
 		}
 	}
 	void run();
